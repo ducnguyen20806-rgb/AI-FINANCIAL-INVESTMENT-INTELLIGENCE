@@ -1,0 +1,277 @@
+"""
+test_system.py
+Bộ kiểm thử hệ thống, chạy được bằng `python test_system.py` (không cần pytest).
+
+Kiểm tra:
+    1. Module 1 sinh đúng cấu trúc dữ liệu
+    2. Module 2 tính đúng các chỉ tiêu cơ bản trên bộ số đã biết trước
+    3. Module 3 định giá DCF khớp với công thức Gordon khi kiểm chứng thủ công
+    4. Module 4 tính EMA/RSI đúng trên chuỗi kiểm chứng
+    5. Module 5 Altman Z-Score khớp phép nhân tay
+    6. Module 6 trả về payload đầy đủ khoá và serialize được sang JSON
+"""
+from __future__ import annotations
+
+import json
+import math
+import sys
+
+import numpy as np
+
+from Module1.mock_source import MockDataSource
+from Module2.fundamental_engine import FundamentalEngine
+from Module3.valuation_engine import ValuationEngine
+from Module4.technical_engine import TechnicalEngine
+from Module5.risk_engine import RiskEngine
+from Module6.decision_engine import DecisionEngine
+
+PASSED = 0
+FAILED = 0
+
+
+def check(name: str, condition: bool, detail: str = "") -> None:
+    global PASSED, FAILED
+    if condition:
+        PASSED += 1
+        print(f"  [OK]   {name}")
+    else:
+        FAILED += 1
+        print(f"  [LỖI]  {name} {detail}")
+
+
+def approx(a: float, b: float, tol: float = 1e-6) -> bool:
+    return abs(a - b) <= tol * max(1.0, abs(b))
+
+
+def approx_abs(a: float, b: float, tol: float = 1.0) -> bool:
+    """So sánh với dung sai tuyệt đối — dùng cho số tiền đã làm tròn về VNĐ."""
+    return abs(a - b) <= tol
+
+
+# ---------------------------------------------------------------------------
+def test_module1() -> dict:
+    print("\nModule 1 — Data Pipeline")
+    src = MockDataSource()
+    data = src.get_all_stock_data("FPT")
+
+    check("Có đủ khoá cấp cao",
+          all(k in data for k in ("symbol", "quote", "ohlc", "financials", "index_ohlc")))
+    check("Chuỗi OHLC đủ dài", len(data["ohlc"]) >= 200, f"({len(data['ohlc'])} phiên)")
+    check("Nến hợp lệ (low <= close <= high)",
+          all(r["low"] <= r["close"] <= r["high"] for r in data["ohlc"]))
+    check("Giá trần > tham chiếu > giá sàn",
+          data["quote"]["ceiling"] > data["quote"]["ref_price"] > data["quote"]["floor"])
+    check("Tính tất định (chạy 2 lần cho kết quả giống nhau)",
+          src.get_quote("FPT")["price"] == src.get_quote("FPT")["price"])
+    check("BCTC có 12 kỳ", len(data["financials"]["periods"]) == 12)
+    return data
+
+
+def test_module2(data: dict) -> dict:
+    print("\nModule 2 — Fundamental Engine")
+    # Bộ số kiểm chứng: 4 quý giống hệt nhau để tính tay dễ dàng
+    q = {
+        "period": "2025Q1", "revenue": 1000.0, "gross_profit": 400.0, "ebit": 200.0,
+        "net_income": 150.0, "cfo": 180.0, "capex": 50.0, "total_assets": 5000.0,
+        "current_assets": 2000.0, "current_liabilities": 1000.0,
+        "total_liabilities": 2000.0, "equity": 3000.0, "retained_earnings": 800.0,
+        "short_debt": 600.0, "long_debt": 400.0, "interest_expense": 20.0, "cash": 300.0,
+    }
+    fake = {"periods": [dict(q) for _ in range(4)], "shares_outstanding": 100.0,
+            "peers": {"pe": 15.0, "pb": 2.0}}
+    f = FundamentalEngine().analyze(fake)
+
+    check("Biên gộp = 40%", approx(f["gross_margin"], 0.40), f"= {f['gross_margin']}")
+    check("Biên EBIT = 20%", approx(f["ebit_margin"], 0.20), f"= {f['ebit_margin']}")
+    check("CFO/LNST = 1.2", approx(f["cfo_to_net_income"], 1.2), f"= {f['cfo_to_net_income']}")
+    check("FCF = 4*(180-50) = 520", approx(f["free_cash_flow"], 520.0), f"= {f['free_cash_flow']}")
+    check("ROE = 600/3000 = 20%", approx(f["roe"], 0.20), f"= {f['roe']}")
+    check("Nợ vay/VCSH = 1000/3000", approx(f["debt_to_equity"], 0.3333, 1e-3),
+          f"= {f['debt_to_equity']}")
+    check("Hệ số hiện hành = 2.0", approx(f["current_ratio"], 2.0), f"= {f['current_ratio']}")
+    # ROIC = EBIT*(1-t)/(Nợ vay + VCSH) = 800*0.8/4000 = 0.16
+    check("ROIC = 16%", approx(f["roic"], 0.16), f"= {f['roic']}")
+    return f
+
+
+def test_module3() -> None:
+    print("\nModule 3 — Valuation Engine")
+    eng = ValuationEngine()
+    # Kiểm chứng thủ công: FCF=100, WACC=10%, g dự báo=0%, g cuối=3%, 5 năm
+    dcf = eng.discounted_cash_flow(fcf_base=100.0, wacc=0.10, growth=0.0,
+                                   net_debt=0.0, shares=10.0)
+    pv_explicit = sum(100.0 / (1.10 ** t) for t in range(1, 6))
+    tv = 100.0 * 1.03 / (0.10 - 0.03)
+    pv_tv = tv / (1.10 ** 5)
+    expected = (pv_explicit + pv_tv) / 10.0
+
+    # Engine làm tròn số tiền về đơn vị VNĐ nên so sánh với dung sai tuyệt đối 1 đồng
+    check("PV giai đoạn hiện", approx_abs(dcf["pv_explicit"], pv_explicit),
+          f"{dcf['pv_explicit']} vs {pv_explicit:.2f}")
+    check("Terminal Value", approx_abs(dcf["terminal_value"], tv),
+          f"{dcf['terminal_value']} vs {tv:.2f}")
+    check("Giá trị nội tại/CP", approx_abs(dcf["intrinsic_value_per_share"], expected),
+          f"{dcf['intrinsic_value_per_share']} vs {expected:.2f}")
+
+    neg = eng.discounted_cash_flow(-50.0, 0.10, 0.05, 0.0, 10.0)
+    check("FCF âm -> trả về 0 kèm ghi chú", neg["intrinsic_value_per_share"] == 0.0
+          and bool(neg["note"]))
+
+    wacc = eng.compute_wacc({"total_debt": 0.0, "ebit_ttm": 100.0,
+                             "interest_coverage": 0.0}, market_cap=1000.0, beta=1.0)
+    # Không nợ -> WACC = Re = Rf + 1*ERP = 3% + 8% = 11%
+    check("WACC không nợ = Re", approx(wacc["wacc"], 0.11, 1e-3), f"= {wacc['wacc']}")
+
+
+def test_module4() -> None:
+    print("\nModule 4 — Technical Engine")
+    eng = TechnicalEngine()
+
+    # EMA trên chuỗi hằng số phải bằng chính hằng số đó
+    const = np.full(60, 100.0)
+    ema = eng.ema(const, 20)
+    check("EMA chuỗi hằng = hằng số", approx(float(ema[-1]), 100.0))
+
+    # Chuỗi tăng đơn điệu -> RSI = 100
+    rising = np.arange(1, 60, dtype=float)
+    rsi = eng.wilder_rsi(rising, 14)
+    check("RSI chuỗi tăng liên tục = 100", approx(float(rsi[-1]), 100.0), f"= {rsi[-1]}")
+
+    falling = np.arange(60, 1, -1, dtype=float)
+    rsi_f = eng.wilder_rsi(falling, 14)
+    check("RSI chuỗi giảm liên tục = 0", approx(float(rsi_f[-1]), 0.0, 1e-3), f"= {rsi_f[-1]}")
+
+    # SMA kiểm chứng
+    sma = eng.sma(np.arange(1, 11, dtype=float), 5)
+    check("SMA(5) của 6..10 = 8", approx(float(sma[-1]), 8.0), f"= {sma[-1]}")
+
+    ohlc = MockDataSource().get_ohlc("HPG")
+    t = eng.analyze(ohlc)
+    check("Hỗ trợ <= giá <= kháng cự",
+          t["support"] <= t["last_close"] <= t["resistance"])
+    check("RSI nằm trong [0, 100]", 0 <= t["rsi14"] <= 100)
+    check("Có đủ chuỗi vẽ biểu đồ",
+          all(k in t["series"] for k in ("date", "close", "ema20", "rsi14", "macd")))
+
+
+def test_module5() -> None:
+    print("\nModule 5 — Risk Engine")
+    eng = RiskEngine()
+    q = {
+        "period": "2025Q1", "revenue": 1000.0, "ebit": 200.0, "total_assets": 5000.0,
+        "current_assets": 2000.0, "current_liabilities": 1000.0,
+        "total_liabilities": 2000.0, "equity": 3000.0, "retained_earnings": 800.0,
+        "net_income": 150.0, "cfo": 180.0, "capex": 50.0, "short_debt": 600.0,
+        "long_debt": 400.0, "interest_expense": 20.0, "cash": 300.0,
+    }
+    fake = {"periods": [dict(q) for _ in range(4)]}
+    z = eng.altman_z_score(fake, market_cap=6000.0)
+
+    x1 = (2000 - 1000) / 5000        # 0.2
+    x2 = 800 / 5000                  # 0.16
+    x3 = (200 * 4) / 5000            # 0.16
+    x4 = 6000 / 2000                 # 3.0
+    x5 = (1000 * 4) / 5000           # 0.8
+    expected = 1.2 * x1 + 1.4 * x2 + 3.3 * x3 + 0.6 * x4 + 0.999 * x5
+
+    check("Altman Z khớp phép tính tay", approx(z["z_score"], expected, 1e-3),
+          f"{z['z_score']} vs {expected:.3f}")
+    check("Phân vùng đúng ngưỡng", z["zone"] == ("AN TOÀN" if expected > 2.99 else
+                                                 "CẢNH BÁO" if expected >= 1.81 else "RỦI RO CAO"))
+
+    src = MockDataSource()
+    m = eng.market_risk(src.get_ohlc("VNM"), src.get_index_ohlc())
+    check("Beta nằm trong vùng hợp lý", 0.0 < m["beta"] < 3.0, f"= {m['beta']}")
+    check("Tương quan với thị trường dương", m["correlation_with_index"] > 0.1,
+          f"= {m['correlation_with_index']}")
+    check("Biến động năm ~ biến động ngày * căn(250)",
+          approx(m["annual_volatility"], m["daily_volatility"] * math.sqrt(250), 1e-2))
+    check("Max drawdown <= 0", m["max_drawdown"] <= 0)
+
+
+def test_module6() -> None:
+    print("\nModule 6 — Decision Engine & ML")
+    eng = DecisionEngine(data_source=MockDataSource())
+    data = eng.analyze("FPT")
+
+    required = ["symbol", "quote", "fundamentals", "valuation", "technical", "risk",
+                "scenarios", "investment_score", "metrics_12", "recommendation",
+                "thesis_journal"]
+    check("Payload đủ khoá", all(k in data for k in required),
+          str([k for k in required if k not in data]))
+    check("Đúng 12 chỉ số", len(data["metrics_12"]) == 12,
+          f"= {len(data['metrics_12'])}")
+    check("Điểm tổng trong [0, 100]",
+          0 <= data["investment_score"]["overall_score"] <= 100)
+
+    pillars = data["investment_score"]["pillars"]
+    weights = data["investment_score"]["weights"]
+    manual = sum(pillars[k] * weights[k] for k in pillars)
+    check("Điểm tổng = tổng có trọng số các trụ cột",
+          approx(data["investment_score"]["overall_score"], round(manual, 1), 1e-3))
+    check("Tổng trọng số = 1.0", approx(sum(weights.values()), 1.0, 1e-9))
+
+    s = data["scenarios"]
+    check("Bear < Base < Bull", s["bear_case"] < s["base_case"] < s["bull_case"],
+          f"{s['bear_case']} / {s['base_case']} / {s['bull_case']}")
+    check("Khoảng tin cậy đối xứng quanh Base",
+          approx((s["bull_case"] - s["base_case"]),
+                 (s["base_case"] - s["bear_case"]), 1e-2)
+          or s["bear_case"] == 0.0)
+
+    check("Cắt lỗ = 90% thị giá",
+          approx(data["recommendation"]["stop_price"],
+                 data["quote"]["price"] * 0.90, 1e-3))
+    check("Tỷ trọng đề xuất <= 15% NAV",
+          data["recommendation"]["position_size_pct"] <= 15.0 + 1e-9)
+
+    try:
+        json.dumps(data, ensure_ascii=False)
+        check("Serialize JSON được", True)
+    except (TypeError, ValueError) as exc:
+        check("Serialize JSON được", False, str(exc))
+
+    check("Thời gian xử lý dưới 3 giây", data["elapsed_ms"] < 3000,
+          f"= {data['elapsed_ms']} ms")
+
+
+def test_robustness() -> None:
+    print("\nKiểm thử biên")
+    fe = FundamentalEngine()
+    empty = fe.analyze({"periods": []})
+    check("BCTC rỗng không gây lỗi", "error" in empty)
+
+    te = TechnicalEngine()
+    short = te.analyze([{"date": "2025-01-01", "open": 1, "high": 1, "low": 1,
+                         "close": 1, "volume": 1, "value": 1}])
+    check("Chuỗi nến quá ngắn không gây lỗi", "error" in short)
+
+    ve = ValuationEngine()
+    zero = ve.analyze({"equity": 0, "net_income_ttm": 0, "free_cash_flow": 0,
+                       "total_debt": 0, "ebit_ttm": 0, "interest_coverage": 0,
+                       "revenue_cagr": 0},
+                      {"price": 0}, {"periods": [{}], "shares_outstanding": 0}, 1.0)
+    check("Giá = 0 không gây chia cho 0", zero["pe"] == 0.0)
+
+
+def main() -> int:
+    print("=" * 60)
+    print(" KIỂM THỬ HỆ THỐNG — AI FINANCIAL INTELLIGENCE PLATFORM")
+    print("=" * 60)
+
+    data = test_module1()
+    test_module2(data)
+    test_module3()
+    test_module4()
+    test_module5()
+    test_module6()
+    test_robustness()
+
+    print("\n" + "=" * 60)
+    print(f" KẾT QUẢ: {PASSED} đạt / {FAILED} lỗi")
+    print("=" * 60)
+    return 1 if FAILED else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

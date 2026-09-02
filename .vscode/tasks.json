@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Cài đặt thư viện",
+      "type": "shell",
+      "command": "pip install -r requirements.txt",
+      "problemMatcher": []
+    },
+    {
+      "label": "Chạy giao diện Streamlit",
+      "type": "shell",
+      "command": "streamlit run app.py",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Chạy API Gateway",
+      "type": "shell",
+      "command": "uvicorn main:app --reload --port 8000",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Kiểm thử hệ thống",
+      "type": "shell",
+      "command": "python test_system.py",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    }
+  ]
+}

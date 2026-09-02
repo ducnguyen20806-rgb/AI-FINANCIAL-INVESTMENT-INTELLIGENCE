@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Streamlit: Giao diện",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "streamlit",
+      "args": ["run", "app.py", "--server.port", "8501"],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "FastAPI: API Gateway",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Kiểm thử nhanh: 1 mã cổ phiếu",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_analysis.py",
+      "args": ["FPT"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Chạy cả API + Giao diện",
+      "configurations": ["FastAPI: API Gateway", "Streamlit: Giao diện"],
+      "stopAll": true
+    }
+  ]
+}
