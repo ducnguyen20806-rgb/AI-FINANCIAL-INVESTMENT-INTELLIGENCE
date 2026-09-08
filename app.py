@@ -71,7 +71,7 @@ def analyze_direct(symbol: str, rf: float, erp: float, g: float,
 
     from Module6.decision_engine import DecisionEngine
 
-    return DecisionEngine().analyze(symbol)
+    return DecisionEngine(config=finance_config).analyze(symbol)
 
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -674,7 +674,7 @@ with tabs[7]:
         radar_data: dict[str, dict[str, float]] = {}
         with st.spinner("Đang thu thập dữ liệu và chấm điểm các mã..."):
             from Module6.decision_engine import get_engine
-            screener_engine = get_engine()
+            screener_engine = get_engine(finance_config)
             for t_sym in ticker_list:
                 try:
                     res = screener_engine.analyze(t_sym)

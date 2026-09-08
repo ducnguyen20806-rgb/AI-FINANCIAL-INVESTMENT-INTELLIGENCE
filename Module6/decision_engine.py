@@ -284,9 +284,9 @@ class DecisionEngine:
 _engine: DecisionEngine | None = None
 
 
-def get_engine() -> DecisionEngine:
+def get_engine(config: Any = finance_config) -> DecisionEngine:
     """Singleton engine dùng chung cho API Gateway và giao diện Streamlit."""
     global _engine
     if _engine is None:
-        _engine = DecisionEngine()
+        _engine = DecisionEngine(config=config)
     return _engine
