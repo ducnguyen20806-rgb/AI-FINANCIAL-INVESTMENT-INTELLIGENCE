@@ -162,6 +162,34 @@ def risk(symbol: str) -> dict[str, Any]:
     return {"symbol": res["symbol"], "risk": res["risk"]}
 
 
+@app.get("/api/v1/sensitivity/{symbol}")
+def sensitivity(symbol: str) -> dict[str, Any]:
+    res = _get_analysis(symbol)
+    return {"symbol": res["symbol"], "sensitivity": res.get("valuation", {}).get("sensitivity", {})}
+
+
+@app.post("/api/v1/optimize_portfolio")
+def optimize_portfolio(payload: dict[str, Any]) -> dict[str, Any]:
+    symbols = payload.get("symbols", ["FPT", "HPG", "VNM", "MWG"])
+    from common.utils import safe_float, to_returns
+    from Module5.risk_engine import RiskEngine
+
+    ds = get_data_source()
+    returns_dict: dict[str, list[float]] = {}
+    for s in symbols:
+        try:
+            ohlc_data = ds.get_ohlc(s)
+            closes = [safe_float(r.get("close")) for r in ohlc_data]
+            rets = to_returns(closes).tolist()
+            if len(rets) >= 20:
+                returns_dict[s] = rets
+        except Exception:
+            pass
+    if len(returns_dict) < 2:
+        raise HTTPException(status_code=400, detail="Cần tối thiểu 2 mã cổ phiếu có đủ dữ liệu để tối ưu danh mục.")
+    return RiskEngine.optimize_portfolio(returns_dict)
+
+
 if __name__ == "__main__":
     import uvicorn
 

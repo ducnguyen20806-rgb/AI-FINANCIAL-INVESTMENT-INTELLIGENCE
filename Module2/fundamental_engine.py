@@ -88,6 +88,7 @@ class FundamentalEngine:
         }
 
         result.update(self._growth(periods))
+        result["piotroski_f_score"] = self._piotroski_f_score(periods)
         result["history"] = self._history(periods)
         return result
 
@@ -143,6 +144,90 @@ class FundamentalEngine:
             )
         return rows
 
+    def _piotroski_f_score(self, periods: list[dict[str, Any]]) -> dict[str, Any]:
+        """
+        Piotroski F-Score (thang điểm 0 - 9 đánh giá sức mạnh tài chính kế toán):
+        - Nhóm Sinh lời (Profitability): ROA > 0, CFO > 0, delta ROA > 0, CFO > Net Income
+        - Nhóm Đòn bẩy & Thanh khoản (Leverage): delta Nợ dài hạn <= 0, delta Current Ratio >= 0, Không pha loãng CP
+        - Nhóm Hiệu quả (Efficiency): delta Biên gộp >= 0, delta Vòng quay tài sản >= 0
+        """
+        if not periods:
+            return {"score": 0, "rating": "KHÔNG XÁC ĐỊNH", "criteria": {}}
+
+        latest = periods[-1]
+        prev_year = periods[-5] if len(periods) >= 5 else (periods[0] if len(periods) > 1 else latest)
+
+        ttm_cur = self._sum_ttm(periods)
+        ttm_prev = self._sum_ttm(periods[:-4]) if len(periods) >= 8 else ttm_cur
+
+        ni_cur = ttm_cur["net_income"]
+        cfo_cur = ttm_cur["cfo"]
+        assets_cur = max(safe_float(latest.get("total_assets")), 1.0)
+        assets_prev = max(safe_float(prev_year.get("total_assets")), 1.0)
+
+        roa_cur = safe_div(ni_cur, assets_cur)
+        roa_prev = safe_div(ttm_prev["net_income"], assets_prev)
+
+        # 1. ROA dương
+        f1 = roa_cur > 0
+        # 2. CFO dương
+        f2 = cfo_cur > 0
+        # 3. ROA tăng trưởng
+        f3 = roa_cur > roa_prev
+        # 4. CFO > Net Income (Accrual quality)
+        f4 = cfo_cur > ni_cur
+
+        # 5. Đòn bẩy giảm (Long-term debt / Assets)
+        lev_cur = safe_div(safe_float(latest.get("long_debt")), assets_cur)
+        lev_prev = safe_div(safe_float(prev_year.get("long_debt")), assets_prev)
+        f5 = lev_cur <= lev_prev
+
+        # 6. Khả năng thanh toán hiện hành tăng
+        cr_cur = safe_div(safe_float(latest.get("current_assets")), max(safe_float(latest.get("current_liabilities")), 1.0))
+        cr_prev = safe_div(safe_float(prev_year.get("current_assets")), max(safe_float(prev_year.get("current_liabilities")), 1.0))
+        f6 = cr_cur >= cr_prev
+
+        # 7. Số lượng cổ phiếu không tăng pha loãng
+        shares_cur = safe_float(latest.get("shares_outstanding"))
+        shares_prev = safe_float(prev_year.get("shares_outstanding"))
+        f7 = (shares_cur <= shares_prev) if (shares_cur > 0 and shares_prev > 0) else True
+
+        # 8. Biên gộp tăng
+        gm_cur = safe_div(ttm_cur["gross_profit"], max(ttm_cur["revenue"], 1.0))
+        gm_prev = safe_div(ttm_prev["gross_profit"], max(ttm_prev["revenue"], 1.0))
+        f8 = gm_cur >= gm_prev
+
+        # 9. Vòng quay tài sản tăng
+        at_cur = safe_div(ttm_cur["revenue"], assets_cur)
+        at_prev = safe_div(ttm_prev["revenue"], assets_prev)
+        f9 = at_cur >= at_prev
+
+        criteria = {
+            "roa_positive": f1,
+            "cfo_positive": f2,
+            "roa_growth": f3,
+            "accrual_cfo_gt_ni": f4,
+            "leverage_decreased": f5,
+            "liquidity_improved": f6,
+            "no_share_dilution": f7,
+            "gross_margin_improved": f8,
+            "asset_turnover_improved": f9,
+        }
+        score = sum(1 for passed in criteria.values() if passed)
+
+        if score >= 8:
+            rating = "RẤT MẠNH (8-9)"
+        elif score >= 5:
+            rating = "ỔN ĐỊNH (5-7)"
+        else:
+            rating = "YẾU KÉM (0-4)"
+
+        return {
+            "score": score,
+            "rating": rating,
+            "criteria": criteria,
+        }
+
     @staticmethod
     def _empty() -> dict[str, Any]:
         return {
@@ -157,5 +242,6 @@ class FundamentalEngine:
             "latest_period": "", "revenue_growth_yoy": 0.0,
             "net_income_growth_yoy": 0.0, "revenue_cagr": 0.0,
             "net_income_cagr": 0.0, "cagr_years": 0.0, "history": [],
+            "piotroski_f_score": {"score": 0, "rating": "KHÔNG XÁC ĐỊNH", "criteria": {}},
             "error": "Không có dữ liệu báo cáo tài chính.",
         }

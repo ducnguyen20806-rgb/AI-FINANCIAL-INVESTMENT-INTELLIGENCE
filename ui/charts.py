@@ -333,3 +333,161 @@ def _empty_fig(message: str) -> go.Figure:
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False)
     return fig
+
+
+def dcf_sensitivity_heatmap(sensitivity: dict[str, Any], current_price: float = 0.0) -> go.Figure:
+    """Biểu đồ Heatmap ma trận phân tích độ nhạy định giá DCF 2 chiều: WACC vs Terminal Growth."""
+    wacc_labels = sensitivity.get("wacc_labels") or []
+    g_labels = sensitivity.get("g_labels") or []
+    matrix = sensitivity.get("matrix") or []
+
+    if not wacc_labels or not g_labels or not matrix:
+        return _empty_fig("Không có dữ liệu ma trận độ nhạy.")
+
+    text_matrix: list[list[str]] = []
+    for row in matrix:
+        text_row: list[str] = []
+        for val in row:
+            if val <= 0:
+                text_row.append("N/A")
+            else:
+                pct_vs_cur = ((val / current_price - 1.0) * 100) if current_price > 0 else 0.0
+                text_row.append(f"{val:,.0f}<br>({pct_vs_cur:+.1f}%)")
+        text_matrix.append(text_row)
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=matrix,
+            x=g_labels,
+            y=wacc_labels,
+            text=text_matrix,
+            texttemplate="%{text}",
+            textfont=dict(size=11, color="#FFFFFF"),
+            colorscale=[
+                [0.0, "rgba(255, 77, 77, 0.75)"],
+                [0.5, "rgba(255, 179, 0, 0.75)"],
+                [1.0, "rgba(0, 230, 118, 0.75)"],
+            ],
+            colorbar=dict(title="Định giá (VNĐ)", tickfont=dict(color=COLORS["text"])),
+            hoverongaps=False,
+        )
+    )
+    layout = plotly_layout(height=380)
+    fig.update_layout(
+        **layout,
+        title="Ma trận Định giá DCF theo Chi phí vốn (WACC) và Tăng trưởng vĩnh viễn (g)",
+        xaxis_title="Tốc độ tăng trưởng dài hạn (g)",
+        yaxis_title="Chi phí vốn bình quân (WACC)",
+    )
+    return fig
+
+
+def efficient_frontier_chart(opt_data: dict[str, Any]) -> go.Figure:
+    """Biểu đồ Đường biên hiệu quả Markowitz (Efficient Frontier) kèm các điểm tối ưu."""
+    sample_points = opt_data.get("sample_points") or []
+    if not sample_points:
+        return _empty_fig("Không có dữ liệu tối ưu danh mục.")
+
+    vols = [safe_float(p.get("volatility")) * 100 for p in sample_points]
+    rets = [safe_float(p.get("return")) * 100 for p in sample_points]
+    sharpes = [safe_float(p.get("sharpe")) for p in sample_points]
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=vols,
+            y=rets,
+            mode="markers",
+            name="Danh mục mô phỏng",
+            marker=dict(
+                size=6,
+                color=sharpes,
+                colorscale="Viridis",
+                showscale=True,
+                colorbar=dict(title="Sharpe Ratio", tickfont=dict(color=COLORS["text"])),
+                opacity=0.7,
+            ),
+            hovertemplate="Rủi ro: %{x:.2f}%<br>Lợi suất: %{y:.2f}%<br>Sharpe: %{marker.color:.2f}<extra></extra>",
+        )
+    )
+
+    max_s = opt_data.get("max_sharpe") or {}
+    if max_s:
+        fig.add_trace(
+            go.Scatter(
+                x=[safe_float(max_s.get("volatility")) * 100],
+                y=[safe_float(max_s.get("return")) * 100],
+                mode="markers+text",
+                name="Tối ưu Sharpe",
+                text=["★ Max Sharpe"],
+                textposition="top center",
+                marker=dict(color=COLORS["ceiling"], size=14, symbol="star"),
+                hovertemplate="★ Max Sharpe<br>Rủi ro: %{x:.2f}%<br>Lợi suất: %{y:.2f}%<extra></extra>",
+            )
+        )
+
+    min_v = opt_data.get("min_volatility") or {}
+    if min_v:
+        fig.add_trace(
+            go.Scatter(
+                x=[safe_float(min_v.get("volatility")) * 100],
+                y=[safe_float(min_v.get("return")) * 100],
+                mode="markers+text",
+                name="Rủi ro tối thiểu",
+                text=["● Min Vol"],
+                textposition="bottom center",
+                marker=dict(color=COLORS["up"], size=12, symbol="circle"),
+                hovertemplate="● Min Volatility<br>Rủi ro: %{x:.2f}%<br>Lợi suất: %{y:.2f}%<extra></extra>",
+            )
+        )
+
+    layout = plotly_layout(height=420)
+    fig.update_layout(
+        **layout,
+        title="Đường biên hiệu quả Markowitz (Risk vs Return)",
+        xaxis_title="Độ lệch chuẩn biến động năm (%)",
+        yaxis_title="Lợi suất kỳ vọng năm (%)",
+        showlegend=True,
+    )
+    return fig
+
+
+def multi_ticker_radar_chart(comparison: dict[str, dict[str, float]]) -> go.Figure:
+    """Biểu đồ Radar so sánh 5 trụ cột giữa nhiều mã cổ phiếu."""
+    if not comparison:
+        return _empty_fig("Không có dữ liệu so sánh.")
+
+    categories = list(PILLAR_LABELS.values())
+    cat_keys = list(PILLAR_LABELS.keys())
+
+    fig = go.Figure()
+    palette = [COLORS["up"], COLORS["accent"], COLORS["ceiling"], COLORS["reference"], "#FF9800", "#E91E63"]
+
+    for idx, (sym, scores) in enumerate(comparison.items()):
+        vals = [safe_float(scores.get(k, 50.0)) for k in cat_keys]
+        vals.append(vals[0])
+        color = palette[idx % len(palette)]
+
+        fig.add_trace(
+            go.Scatterpolar(
+                r=vals,
+                theta=categories + [categories[0]],
+                name=sym,
+                line=dict(color=color, width=2),
+                fill="toself",
+                opacity=0.25,
+            )
+        )
+
+    layout = plotly_layout(height=420)
+    fig.update_layout(
+        **layout,
+        title="So sánh 5 Trụ cột Investment Score",
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 100], gridcolor=COLORS["line"], color=COLORS["muted"]),
+            angularaxis=dict(gridcolor=COLORS["line"], color=COLORS["text"]),
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        showlegend=True,
+    )
+    return fig

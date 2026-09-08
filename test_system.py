@@ -96,6 +96,8 @@ def test_module2(data: dict) -> dict:
     check("Hệ số hiện hành = 2.0", approx(f["current_ratio"], 2.0), f"= {f['current_ratio']}")
     # ROIC = EBIT*(1-t)/(Nợ vay + VCSH) = 800*0.8/4000 = 0.16
     check("ROIC = 16%", approx(f["roic"], 0.16), f"= {f['roic']}")
+    check("Piotroski F-Score trong [0, 9]", 0 <= f.get("piotroski_f_score", {}).get("score", -1) <= 9)
+    check("Piotroski có rating", f.get("piotroski_f_score", {}).get("rating") in ["RẤT MẠNH (8-9)", "ỔN ĐỊNH (5-7)", "YẾU KÉM (0-4)"])
     return f
 
 
@@ -126,6 +128,10 @@ def test_module3() -> None:
                              "interest_coverage": 0.0}, market_cap=1000.0, beta=1.0)
     # Không nợ -> WACC = Re = Rf + 1*ERP = 3% + 8% = 11%
     check("WACC không nợ = Re", approx(wacc["wacc"], 0.11, 1e-3), f"= {wacc['wacc']}")
+
+    sens = eng.sensitivity_matrix(fcf_base=100.0, base_wacc=0.10, growth=0.05, net_debt=0.0, shares=10.0)
+    check("Ma trận độ nhạy DCF có 5x6 ô", len(sens.get("matrix", [])) == 5 and len(sens.get("matrix", [])[0]) == 6)
+    check("Ma trận độ nhạy WACC nhãn đủ 5 bước", len(sens.get("wacc_labels", [])) == 5)
 
 
 def test_module4() -> None:
@@ -192,6 +198,19 @@ def test_module5() -> None:
     check("Biến động năm ~ biến động ngày * căn(250)",
           approx(m["annual_volatility"], m["daily_volatility"] * math.sqrt(250), 1e-2))
     check("Max drawdown <= 0", m["max_drawdown"] <= 0)
+
+    beneish = eng.beneish_m_score(fake)
+    check("Beneish M-Score có điểm số hợp lệ", isinstance(beneish.get("m_score"), (int, float)))
+    check("Beneish M-Score có rủi ro phân loại", beneish.get("manipulation_risk") in ["AN TOÀN", "NGUY CƠ CAO", "THẤP"])
+
+    ret_mock = {
+        "FPT": [0.01, -0.005, 0.015, -0.002, 0.02, 0.005, -0.01, 0.012, -0.003, 0.008, 0.015, -0.004, 0.006, 0.002, -0.008, 0.011, 0.004, -0.002, 0.01, -0.005, 0.008],
+        "HPG": [0.02, -0.01, 0.025, -0.005, 0.03, 0.01, -0.015, 0.018, -0.006, 0.012, 0.022, -0.008, 0.009, 0.003, -0.012, 0.016, 0.006, -0.004, 0.015, -0.008, 0.012],
+    }
+    opt = RiskEngine.optimize_portfolio(ret_mock)
+    check("Portfolio Optimizer tính được Max Sharpe", opt.get("max_sharpe", {}).get("sharpe") is not None)
+    weights_sum = sum(opt.get("max_sharpe", {}).get("weights", {}).values())
+    check("Tổng tỷ trọng danh mục = 1.0", approx(weights_sum, 1.0, 1e-2))
 
 
 def test_module6() -> None:
@@ -273,7 +292,16 @@ def test_robustness() -> None:
     check("ML Engine chuỗi ngắn trả về Random Walk", "Random Walk" in short_scenarios["meta"]["model"])
 
     # UI Charts biên
-    from ui.charts import candlestick_chart, momentum_chart, financial_history_chart, drawdown_chart, wacc_chart
+    from ui.charts import (
+        candlestick_chart,
+        dcf_sensitivity_heatmap,
+        drawdown_chart,
+        efficient_frontier_chart,
+        financial_history_chart,
+        momentum_chart,
+        multi_ticker_radar_chart,
+        wacc_chart,
+    )
     fig_candle = candlestick_chart({})
     check("candlestick_chart nhận dict rỗng không lỗi", fig_candle is not None)
     fig_mom = momentum_chart({"series": {"date": [], "rsi14": []}})
@@ -284,6 +312,12 @@ def test_robustness() -> None:
     check("drawdown_chart xử lý None an toàn", fig_dd is not None)
     fig_wacc = wacc_chart({})
     check("wacc_chart nhận dict rỗng không lỗi", fig_wacc is not None)
+    fig_sens = dcf_sensitivity_heatmap({})
+    check("dcf_sensitivity_heatmap nhận dict rỗng không lỗi", fig_sens is not None)
+    fig_front = efficient_frontier_chart({})
+    check("efficient_frontier_chart nhận dict rỗng không lỗi", fig_front is not None)
+    fig_radar = multi_ticker_radar_chart({})
+    check("multi_ticker_radar_chart nhận dict rỗng không lỗi", fig_radar is not None)
 
 
 def main() -> int:

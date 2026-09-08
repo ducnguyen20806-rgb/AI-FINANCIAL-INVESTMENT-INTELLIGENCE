@@ -126,6 +126,54 @@ class ValuationEngine:
         }
 
     # ------------------------------------------------------------------
+    def sensitivity_matrix(self, fcf_base: float, base_wacc: float, growth: float,
+                           net_debt: float, shares: float) -> dict[str, Any]:
+        """
+        Ma trận phân tích độ nhạy DCF 2 chiều: WACC vs Terminal Growth g.
+        """
+        years = self.cfg.forecast_years
+        g = clamp(growth, -0.05, 0.20)
+
+        wacc_steps = [base_wacc - 0.02, base_wacc - 0.01, base_wacc, base_wacc + 0.01, base_wacc + 0.02]
+        wacc_steps = [clamp(w, 0.06, 0.30) for w in wacc_steps]
+        wacc_labels = [f"{w * 100:.1f}%" for w in wacc_steps]
+
+        g_steps = [0.015, 0.020, 0.025, 0.030, 0.035, 0.040]
+        g_labels = [f"{gv * 100:.1f}%" for gv in g_steps]
+
+        matrix: list[list[float]] = []
+        for w_val in wacc_steps:
+            row: list[float] = []
+            for g_term in g_steps:
+                if fcf_base <= 0 or w_val <= g_term:
+                    row.append(0.0)
+                    continue
+
+                pv_sum = 0.0
+                fcf_t = fcf_base
+                for t in range(1, years + 1):
+                    fcf_t = fcf_t * (1 + g)
+                    discount = (1 + w_val) ** t
+                    pv_sum += fcf_t / discount
+
+                tv = fcf_t * (1 + g_term) / (w_val - g_term)
+                pv_tv = tv / ((1 + w_val) ** years)
+
+                ev = pv_sum + pv_tv
+                eq = ev - net_debt
+                val_per_share = max(safe_div(eq, shares), 0.0)
+                row.append(rnd(val_per_share, 0))
+            matrix.append(row)
+
+        return {
+            "wacc_labels": wacc_labels,
+            "g_labels": g_labels,
+            "matrix": matrix,
+            "base_wacc": rnd(base_wacc, 4),
+            "base_growth": rnd(g, 4),
+        }
+
+    # ------------------------------------------------------------------
     # Orchestrator của Module 3
     # ------------------------------------------------------------------
     def analyze(self, fundamentals: dict[str, Any], quote: dict[str, Any],
@@ -155,6 +203,7 @@ class ValuationEngine:
 
         dcf = self.discounted_cash_flow(fcf, wacc, growth, net_debt, shares)
         intrinsic = dcf["intrinsic_value_per_share"]
+        sensitivity = self.sensitivity_matrix(fcf, wacc, growth, net_debt, shares)
 
         pe = safe_div(price, eps)
         pb = safe_div(price, bvps)
@@ -168,13 +217,16 @@ class ValuationEngine:
         relative_targets = [t for t in (target_by_pe, target_by_pb) if t > 0]
         relative_value = sum(relative_targets) / len(relative_targets) if relative_targets else 0.0
 
-        # Giá trị hợp lý tổng hợp: 60% DCF + 40% bội số ngành
         if intrinsic > 0 and relative_value > 0:
-            fair_value = 0.6 * intrinsic + 0.4 * relative_value
+            fair_value = intrinsic * 0.60 + relative_value * 0.40
+        elif intrinsic > 0:
+            fair_value = intrinsic
+        elif relative_value > 0:
+            fair_value = relative_value
         else:
-            fair_value = intrinsic or relative_value
+            fair_value = price
 
-        upside = safe_div(fair_value - price, price) if fair_value > 0 else 0.0
+        upside = safe_div(fair_value - price, price) if price else 0.0
 
         return {
             "price": rnd(price, 0),
@@ -196,4 +248,5 @@ class ValuationEngine:
             "wacc_detail": wacc_block,
             "wacc": wacc,
             "dcf": dcf,
+            "sensitivity": sensitivity,
         }

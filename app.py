@@ -28,9 +28,12 @@ from config import app_config, finance_config
 from ui.charts import (
     candlestick_chart,
     dcf_chart,
+    dcf_sensitivity_heatmap,
     drawdown_chart,
+    efficient_frontier_chart,
     financial_history_chart,
     momentum_chart,
+    multi_ticker_radar_chart,
     pillar_chart,
     scenario_chart,
     wacc_chart,
@@ -338,7 +341,7 @@ st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
 # --- Tabs ---
 tabs = st.tabs([
     "Tổng quan", "12 chỉ số", "Cơ bản", "Định giá",
-    "Kỹ thuật", "Rủi ro", "Nhật ký đầu tư", "JSON", "💬 Trợ lý AI",
+    "Kỹ thuật", "Rủi ro", "Nhật ký đầu tư", "🔍 Bộ lọc & So sánh", "💼 Tối ưu Danh mục", "JSON", "💬 Trợ lý AI",
 ])
 
 # ============================ TAB 1: TỔNG QUAN =============================
@@ -413,6 +416,28 @@ with tabs[2]:
                           "Biên LN ròng", "Biên EBIT"]
             st.dataframe(df, use_container_width=True, hide_index=True)
 
+    st.markdown("---")
+    f_score_data = f.get("piotroski_f_score", {})
+    f_val = int(f_score_data.get("score", 0))
+    f_rating = str(f_score_data.get("rating", "N/A"))
+    f_color = COLORS["up"] if f_val >= 7 else (COLORS["accent"] if f_val >= 5 else COLORS["down"])
+    st.markdown(f"### 📋 Thang Điểm Kế Toán: Piotroski F-Score: <span style='color:{f_color}; font-weight:bold;'>{f_val}/9 — {f_rating}</span>", unsafe_allow_html=True)
+    with st.expander("Chi tiết 9 tiêu chuẩn Piotroski F-Score (Profitability, Leverage, Efficiency)"):
+        crit = f_score_data.get("criteria", {})
+        crit_rows = [
+            ("1. Sinh lời: ROA dương", "Đạt" if crit.get("roa_positive") else "Không đạt"),
+            ("2. Sinh lời: CFO dương", "Đạt" if crit.get("cfo_positive") else "Không đạt"),
+            ("3. Sinh lời: ROA tăng trưởng YoY", "Đạt" if crit.get("roa_growth") else "Không đạt"),
+            ("4. Chất lượng LN: CFO > Net Income (Accrual)", "Đạt" if crit.get("accrual_cfo_gt_ni") else "Không đạt"),
+            ("5. Đòn bẩy: Tỷ lệ Nợ dài hạn giảm", "Đạt" if crit.get("leverage_decreased") else "Không đạt"),
+            ("6. Thanh khoản: Hệ số hiện hành tăng", "Đạt" if crit.get("liquidity_improved") else "Không đạt"),
+            ("7. Cấu trúc vốn: Không phát hành cổ phiếu pha loãng", "Đạt" if crit.get("no_share_dilution") else "Không đạt"),
+            ("8. Hiệu quả: Biên lợi nhuận gộp tăng", "Đạt" if crit.get("gross_margin_improved") else "Không đạt"),
+            ("9. Hiệu quả: Vòng quay tài sản tăng", "Đạt" if crit.get("asset_turnover_improved") else "Không đạt"),
+        ]
+        df_f = pd.DataFrame({"Tiêu chí": [r[0] for r in crit_rows], "Đánh giá": [r[1] for r in crit_rows]})
+        st.dataframe(df_f, use_container_width=True, hide_index=True)
+
 # ============================ TAB 4: ĐỊNH GIÁ =============================
 with tabs[3]:
     v = valuation
@@ -465,6 +490,13 @@ with tabs[3]:
             ]),
             use_container_width=True, hide_index=True,
         )
+
+    st.markdown("---")
+    st.markdown("**Ma trận phân tích độ nhạy DCF 2 chiều (WACC vs Terminal Growth g)**")
+    sens = v.get("sensitivity", {})
+    if sens:
+        st.plotly_chart(dcf_sensitivity_heatmap(sens, safe_float(v.get("price"))), use_container_width=True)
+        st.caption("Ma trận kiểm tra độ bền vững của giá trị nội tại khi chi phí vốn WACC và tốc độ tăng trưởng vĩnh viễn thay đổi theo các kịch bản vĩ mô.")
 
 # ============================ TAB 5: KỸ THUẬT =============================
 with tabs[4]:
@@ -548,6 +580,32 @@ with tabs[5]:
     else:
         st.success("Không phát hiện cờ rủi ro nổi bật theo bộ tiêu chí định lượng.")
 
+    st.markdown("---")
+    beneish = risk.get("beneish", {})
+    m_val = safe_float(beneish.get("m_score"))
+    m_risk = str(beneish.get("manipulation_risk", "N/A"))
+    m_color = COLORS["down"] if m_val > -1.78 else COLORS["up"]
+    st.markdown(f"### 🛡️ Phát Hiện Thao Túng BCTC: Beneish M-Score: <span style='color:{m_color}; font-weight:bold;'>{m_val:.2f} ({m_risk})</span>", unsafe_allow_html=True)
+    st.caption(beneish.get("description", ""))
+    with st.expander("Chi tiết 8 chỉ số thành phần Beneish M-Score (GS. Messod Beneish)"):
+        m_comps = beneish.get("components", {})
+        comp_rows = [
+            ("DSRI (Days Sales in Receivables Index)", f"{safe_float(m_comps.get('DSRI_receivables')):.3f}", "Tỷ lệ phải thu / Doanh thu"),
+            ("GMI (Gross Margin Index)", f"{safe_float(m_comps.get('GMI_gross_margin')):.3f}", "Chỉ số suy giảm biên lợi nhuận gộp"),
+            ("AQI (Asset Quality Index)", f"{safe_float(m_comps.get('AQI_asset_quality')):.3f}", "Chỉ số chất lượng tài sản"),
+            ("SGI (Sales Growth Index)", f"{safe_float(m_comps.get('SGI_sales_growth')):.3f}", "Tốc độ tăng trưởng doanh thu"),
+            ("DEPI (Depreciation Index)", f"{safe_float(m_comps.get('DEPI_depreciation')):.3f}", "Tỷ lệ khấu hao"),
+            ("SGAI (SGA Expense Index)", f"{safe_float(m_comps.get('SGAI_sga_expense')):.3f}", "Chi phí bán hàng & quản lý"),
+            ("LVGI (Leverage Index)", f"{safe_float(m_comps.get('LVGI_leverage')):.3f}", "Chỉ số tăng trưởng đòn bẩy nợ"),
+            ("TATA (Total Accruals to Total Assets)", f"{safe_float(m_comps.get('TATA_accruals')):.3f}", "Tổng biến động dồn tích kế toán"),
+        ]
+        df_m = pd.DataFrame({
+            "Chỉ số": [r[0] for r in comp_rows],
+            "Giá trị": [r[1] for r in comp_rows],
+            "Ý nghĩa": [r[2] for r in comp_rows],
+        })
+        st.dataframe(df_m, use_container_width=True, hide_index=True)
+
 # ============================ TAB 7: NHẬT KÝ ==============================
 with tabs[6]:
     st.markdown("**Bảng nhật ký đầu tư (Investment Thesis Journal)**")
@@ -602,14 +660,126 @@ with tabs[6]:
             "các mức giá mục tiêu và cắt lỗ được tính lại theo dữ liệu mới nhất."
         )
 
-# ============================ TAB 8: JSON =================================
+# ============================ TAB 8: BỘ LỌC & SO SÁNH =====================
 with tabs[7]:
+    st.markdown("### 🔍 Bộ Lọc & So Sánh Cổ Phiếu Đa Mã (Stock Screener)")
+    st.caption("Quét và so sánh sức khỏe định lượng, định giá và động lượng kỹ thuật giữa các mã cổ phiếu.")
+
+    default_peers = "FPT, HPG, VNM, MWG, VCB, SSI"
+    peer_input = st.text_input("Nhập danh sách mã cổ phiếu cần so sánh (cách nhau bởi dấu phẩy):", value=default_peers)
+    ticker_list = [t.strip().upper() for t in peer_input.split(",") if t.strip()]
+
+    if st.button("🚀 Bắt đầu Quét & So Sánh", key="btn_run_screener"):
+        screener_rows = []
+        radar_data: dict[str, dict[str, float]] = {}
+        with st.spinner("Đang thu thập dữ liệu và chấm điểm các mã..."):
+            from Module6.decision_engine import get_engine
+            screener_engine = get_engine()
+            for t_sym in ticker_list:
+                try:
+                    res = screener_engine.analyze(t_sym)
+                    sc = res.get("investment_score", {})
+                    va = res.get("valuation", {})
+                    fu = res.get("fundamentals", {})
+                    ri = res.get("risk", {})
+                    reco = res.get("recommendation", {})
+                    screener_rows.append({
+                        "Mã CP": t_sym,
+                        "Điểm Đầu Tư": safe_float(sc.get("overall_score")),
+                        "Xếp loại": str(sc.get("grade", "")),
+                        "Khuyến nghị": str(reco.get("action", "")),
+                        "Giá HT (VNĐ)": safe_float(res.get("quote", {}).get("price")),
+                        "P/E": safe_float(va.get("pe")),
+                        "ROE (%)": pct(fu.get("roe")),
+                        "Biên EBIT (%)": pct(fu.get("ebit_margin")),
+                        "Piotroski F": int(fu.get("piotroski_f_score", {}).get("score", 0)),
+                        "Altman Z": safe_float(ri.get("altman", {}).get("z_score")),
+                        "Beneish M": safe_float(ri.get("beneish", {}).get("m_score")),
+                    })
+                    radar_data[t_sym] = sc.get("pillars", {})
+                except Exception:
+                    pass
+
+        if screener_rows:
+            df_screener = pd.DataFrame(screener_rows).sort_values(by="Điểm Đầu Tư", ascending=False)
+            st.dataframe(df_screener, use_container_width=True, hide_index=True)
+
+            st.markdown("---")
+            st.markdown("**Biểu đồ Radar So Sánh 5 Trụ Cột**")
+            st.plotly_chart(multi_ticker_radar_chart(radar_data), use_container_width=True)
+
+# ============================ TAB 9: TỐI ƯU DANH MỤC =======================
+with tabs[8]:
+    st.markdown("### 💼 Tối Ưu Hóa Danh Mục Đầu Tư Đa Mã (Markowitz Efficient Frontier)")
+    st.caption("Ứng dụng mô phỏng Monte Carlo trên đường biên hiệu quả để tìm tỷ trọng phân bổ vốn tối ưu.")
+
+    col_p1, col_p2 = st.columns([2, 1])
+    with col_p1:
+        port_input = st.text_input("Nhập danh mục cổ phiếu (3 đến 6 mã):", value="FPT, HPG, VNM, MWG", key="port_tickers")
+    with col_p2:
+        capital_input = st.number_input("Tổng vốn đầu tư (VNĐ):", min_value=10_000_000, value=100_000_000, step=10_000_000, format="%d")
+
+    port_syms = [s.strip().upper() for s in port_input.split(",") if s.strip()]
+
+    if st.button("⚖️ Tối Ưu Hóa Tỷ Trọng Danh Mục", key="btn_optimize_port"):
+        with st.spinner("Đang tải chuỗi giá lịch sử và mô phỏng 1,000 danh mục Monte Carlo..."):
+            from Module1.data_source import get_data_source
+            from common.utils import to_returns
+            from Module5.risk_engine import RiskEngine
+
+            ds = get_data_source()
+            returns_dict = {}
+            valid_syms = []
+            for s in port_syms:
+                try:
+                    ohlc_data = ds.get_ohlc(s)
+                    closes = [safe_float(r.get("close")) for r in ohlc_data]
+                    rets = to_returns(closes).tolist()
+                    if len(rets) >= 20:
+                        returns_dict[s] = rets
+                        valid_syms.append(s)
+                except Exception:
+                    pass
+
+            if len(valid_syms) >= 2:
+                opt_res = RiskEngine.optimize_portfolio(returns_dict, risk_free_rate=finance_config.risk_free_rate)
+                st.plotly_chart(efficient_frontier_chart(opt_res), use_container_width=True)
+
+                col_res1, col_res2 = st.columns(2, gap="large")
+                with col_res1:
+                    max_s = opt_res.get("max_sharpe", {})
+                    st.success(f"★ **Danh mục Tối ưu Sharpe Ratio ({safe_float(max_s.get('sharpe')):.2f})**")
+                    st.write(f"- Lợi suất kỳ vọng năm: **{pct(max_s.get('return')):.2f}%**")
+                    st.write(f"- Biến động rủi ro năm: **{pct(max_s.get('volatility')):.2f}%**")
+                    w_s = max_s.get("weights", {})
+                    alloc_s = []
+                    for sym_name, wt in w_s.items():
+                        alloc_vnd = capital_input * wt
+                        alloc_s.append({"Mã CP": sym_name, "Tỷ trọng": f"{wt*100:.1f}%", "Vốn phân bổ": f"{alloc_vnd:,.0f} VNĐ"})
+                    st.dataframe(pd.DataFrame(alloc_s), use_container_width=True, hide_index=True)
+
+                with col_res2:
+                    min_v = opt_res.get("min_volatility", {})
+                    st.info(f"● **Danh mục Rủi ro Tối thiểu (Biến động {pct(min_v.get('volatility')):.2f}%)**")
+                    st.write(f"- Lợi suất kỳ vọng năm: **{pct(min_v.get('return')):.2f}%**")
+                    st.write(f"- Sharpe Ratio: **{safe_float(min_v.get('sharpe')):.2f}**")
+                    w_v = min_v.get("weights", {})
+                    alloc_v = []
+                    for sym_name, wt in w_v.items():
+                        alloc_vnd = capital_input * wt
+                        alloc_v.append({"Mã CP": sym_name, "Tỷ trọng": f"{wt*100:.1f}%", "Vốn phân bổ": f"{alloc_vnd:,.0f} VNĐ"})
+                    st.dataframe(pd.DataFrame(alloc_v), use_container_width=True, hide_index=True)
+            else:
+                st.error("Không đủ dữ liệu giá của tối thiểu 2 mã cổ phiếu để tối ưu danh mục.")
+
+# ============================ TAB 10: JSON ================================
+with tabs[9]:
     st.markdown("**Payload JSON trả về từ Module 6** — chính là dữ liệu mà API Gateway phục vụ")
     st.code(f"GET {api_url}/api/v1/analyze/{symbol}", language="bash")
     st.json(data, expanded=False)
 
-# ============================ TAB 9: TRỢ LÝ AI =============================
-with tabs[8]:
+# ============================ TAB 11: TRỢ LÝ AI ============================
+with tabs[10]:
     st.markdown(f"**💬 Trợ lý AI Phân tích Đầu tư ({symbol})**")
     st.caption("Trợ lý AI tích hợp dữ liệu định lượng thời gian thực, mô hình định giá DCF và chỉ số tài chính.")
 

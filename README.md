@@ -9,7 +9,7 @@
 [![Vnstock](https://img.shields.io/badge/Vnstock-4.0.7+-green)](https://vnstocks.com)
 [![SSI FastConnect](https://img.shields.io/badge/SSI_FastConnect-v2_API-red)](https://www.ssi.com.vn/)
 [![Pyright](https://img.shields.io/badge/Pyright-0_Errors_Clean-brightgreen)](https://github.com/microsoft/pyright)
-[![Tests](https://img.shields.io/badge/Unit_Tests-55%2F55_Passing_100%25-brightgreen)](test_system.py)
+[![Tests](https://img.shields.io/badge/Unit_Tests-66%2F66_Passing_100%25-brightgreen)](test_system.py)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
 **Nền tảng phân tích tài chính và hỗ trợ quyết định đầu tư định lượng chuyên sâu cho thị trường chứng khoán Việt Nam.**
@@ -91,6 +91,31 @@ flowchart TD
 | **Định giá** | **P/B** | $\frac{\text{Thị giá}}{\text{Giá trị sổ sách/CP}}$ | So sánh với ROE tương ứng |
 | **Kỹ thuật** | **RSI (14) Wilder** | Công thức làm mượt cổ điển Wilder | $30 - 70$ (Tránh mua khi quá mua $>70$) |
 | **Rủi ro** | **Altman Z-Score** | $1.2X_1 + 1.4X_2 + 3.3X_3 + 0.6X_4 + 0.999X_5$ | $> 2.9$ (Vùng an toàn - Safe Zone) |
+
+---
+
+## 💎 Tính Năng Định Lượng Cao Cấp (Institutional Quant Upgrade)
+
+### 1. 📋 Piotroski F-Score (0 - 9 Điểm)
+Đo lường sức khỏe tài chính toàn diện qua 9 bài test kế toán khắt khe thuộc 3 nhóm: **Sinh lời** (ROA > 0, CFO > 0, $\Delta$ROA > 0, CFO > LNST), **Đòn bẩy & Thanh khoản** ($\Delta$Nợ dài hạn $\le 0$, $\Delta$Current Ratio $\ge 0$, Không pha loãng CP), và **Hiệu quả hoạt động** ($\Delta$Biên gộp $\ge 0$, $\Delta$Vòng quay TS $\ge 0$).
+
+### 2. 🛡️ Beneish M-Score (Cảnh Báo Thao Túng BCTC)
+Mô hình toán học 8 biến số của GS. Messod Beneish giúp phát hiện các hành vi "xào nấu" số liệu kế toán:
+$$M = -4.84 + 0.920\text{DSRI} + 0.528\text{GMI} + 0.404\text{AQI} + 0.892\text{SGI} + 0.115\text{DEPI} - 0.172\text{SGAI} + 4.037\text{TATA} + 0.0327\text{LVGI}$$
+- $M > -1.78$: Tín hiệu cảnh báo nguy cơ cao doanh nghiệp đang thao túng lợi nhuận.
+- $M \le -1.78$: Xác suất thao túng số liệu ở mức thấp (an toàn).
+
+### 3. 🌡️ Ma Trận Phân Tích Độ Nhạy DCF 2 Chiều (Valuation Heatmap)
+Khảo sát độ bền vững của định giá nội tại khi **Chi phí vốn (WACC)** từ $8\%$ đến $14\%$ và **Tăng trưởng vĩnh viễn ($g$)** từ $1.5\%$ đến $4.0\%$ biến động theo chu kỳ vĩ mô. Trực quan hóa bằng biểu đồ Heatmap tương tác trên Streamlit.
+
+### 4. 🔍 Bộ Lọc Cổ Phiếu Đa Mã (Stock Screener & Radar Comparison)
+Quét và so sánh đồng thời nhiều cổ phiếu (nhóm VN30 hoặc mã tùy biến). Tự động xếp hạng theo **Investment Score**, **P/E**, **ROE**, **Biên EBIT**, **Piotroski F-Score** và vẽ biểu đồ **Radar 5 Trụ Cột** so sánh đa lớp.
+
+### 5. 💼 Tối Ưu Hóa Danh Mục Markowitz (Efficient Frontier)
+Mô phỏng Monte Carlo 1,000 danh mục trên chuỗi dữ liệu thực tế để tìm ra:
+- **Max Sharpe Portfolio**: Tối đa hóa tỷ suất sinh lời trên mỗi đơn vị rủi ro.
+- **Min Volatility Portfolio**: Rủi ro biến động thấp nhất (bảo toàn vốn).
+- Xuất bảng phân bổ vốn đề xuất (tỷ trọng % NAV và số tiền VNĐ cụ thể).
 
 ---
 
