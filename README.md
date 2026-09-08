@@ -1,252 +1,204 @@
-# AI Financial & Investment Intelligence Platform
+# 🚀 AI Financial & Investment Intelligence Platform
 
-Nền tảng phân tích tài chính và hỗ trợ quyết định đầu tư định lượng cho thị trường chứng khoán Việt Nam. Nhập một mã bất kỳ, hệ thống tự thu thập dữ liệu thô, chạy mô hình định giá và học máy, rồi xuất ra 12 chỉ số tài chính, điểm Investment Score phân rã, 3 kịch bản giá và bảng nhật ký đầu tư.
+<div align="center">
+
+[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.32+-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-1.3+-F7931E?logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
+[![Vnstock](https://img.shields.io/badge/Vnstock-4.0.7+-green)](https://vnstocks.com)
+[![SSI FastConnect](https://img.shields.io/badge/SSI_FastConnect-v2_API-red)](https://www.ssi.com.vn/)
+[![Pyright](https://img.shields.io/badge/Pyright-0_Errors_Clean-brightgreen)](https://github.com/microsoft/pyright)
+[![Tests](https://img.shields.io/badge/Unit_Tests-55%2F55_Passing_100%25-brightgreen)](test_system.py)
+[![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
+
+**Nền tảng phân tích tài chính và hỗ trợ quyết định đầu tư định lượng chuyên sâu cho thị trường chứng khoán Việt Nam.**
+
+*Nhập 1 mã cổ phiếu bất kỳ → Hệ thống tự động thu thập dữ liệu thô, chạy mô hình định giá & học máy, rồi xuất ra 12 chỉ số tài chính, Investment Score phân rã 5 trụ cột, 3 kịch bản giá và bảng nhật ký luận điểm đầu tư.*
+
+</div>
 
 ---
 
-## 1. Cài đặt
+## 📸 Giao diện Nền tảng (Show, Don't Tell)
 
-Yêu cầu Python 3.10 trở lên.
+![AI Financial Platform Dashboard](assets/dashboard_hero.png)
+
+---
+
+## 🌟 4 Trụ Cột Đầu Ra Cốt Lõi (Core Deliverables)
+
+| Trụ cột | Mô tả chi tiết | Ý nghĩa thực chiến |
+|:---|:---|:---|
+| **1. Lưới 12 Chỉ số Định lượng** | Chuẩn hóa 12 chỉ số then chốt từ BCTC, định giá, động lượng và rủi ro (Biên gộp, Biên EBIT, CFO/LNST, FCF TTM, ROE, ROIC, Nợ vay/VCSH, Current Ratio, P/E, P/B, RSI-14, Altman Z). | Bóc tách toàn diện sức khỏe doanh nghiệp, phát hiện rủi ro tiềm ẩn và bẫy giá trị. |
+| **2. Investment Score (0 - 100)** | Điểm số tổng hợp được phân rã minh bạch trên 5 trụ cột: Sức khỏe cơ bản (30%), Định giá DCF (25%), Động lượng kỹ thuật (20%), Quản trị rủi ro (15%) và Dự báo ML (10%). | Ra quyết định khách quan, triệt tiêu cảm xúc và thiên kiến tâm lý cá nhân. |
+| **3. 3 Kịch bản Giá (ML Forecasting)** | Mô hình `RandomForestRegressor` kết hợp phân phối độ bất định mô hình và độ lệch chuẩn biến động lịch sử để dự phóng 3 kịch bản giá sau 10 phiên: **Bear Case** (rủi ro), **Base Case** (cơ sở) và **Bull Case** (bứt phá). | Cung cấp khoảng tin cậy đối xứng 95% để thiết lập tỷ lệ Risk/Reward chính xác. |
+| **4. Bảng Nhật ký Đầu tư (Thesis Journal)** | Tự động sinh luận điểm mua/bán, catalysts, rủi ro bear case, giá mua đề xuất, giá mục tiêu chốt lời, ngưỡng cắt lỗ kỷ luật (-10%) và tỷ trọng phân bổ vốn tối đa $\le 15\%$ NAV. | Chuẩn hóa kỷ luật quản trị danh mục và ghi chép nhật ký giao dịch chuyên nghiệp. |
+
+---
+
+## 🏗️ Sơ đồ Kiến trúc Hệ thống (System Architecture)
+
+![Quantitative Pipeline Architecture](assets/system_pipeline.png)
+
+```mermaid
+flowchart TD
+    subgraph DataLayer ["Tầng Thu Thập Dữ Liệu (Module 1)"]
+        A1["SSI FastConnect v2 API"] --> DS["DataSource Facade"]
+        A2["Vnstock 4.x (VCI Source)"] --> DS
+        A3["MockDataSource (Tất định)"] --> DS
+    end
+
+    subgraph AnalyticsEngines ["5 Engine Phân Tích Định Lượng"]
+        DS --> M2["Module 2: Fundamental Engine\n(Biên LN, CFO/LNST, ROE, ROIC, FCF)"]
+        DS --> M5["Module 5: Risk Engine\n(Altman Z-Score, Beta VNINDEX, Drawdown)"]
+        M5 -- "Beta" --> M3["Module 3: Valuation Engine\n(WACC, DCF 5 năm, Terminal Value, P/E, P/B)"]
+        DS --> M4["Module 4: Technical Engine\n(EMA20/50, Wilder RSI, MACD, Hỗ trợ/Kháng cự)"]
+        DS --> M6_ML["Module 6 (ML Engine)\n(RandomForestRegressor, 3 Scenarios Bear/Base/Bull)"]
+    end
+
+    subgraph DecisionEngine ["Bộ Não Tổng Hợp (Decision Engine)"]
+        M2 & M3 & M4 & M5 & M6_ML --> DE["Module 6: DecisionEngine"]
+        DE --> O1["12 Chỉ số Tài chính"]
+        DE --> O2["Investment Score (5 Trụ cột)"]
+        DE --> O3["3 Kịch bản Giá ML"]
+        DE --> O4["Bảng Nhật ký Luận điểm & Cắt lỗ"]
+    end
+
+    subgraph Presentation ["Tầng Giao Diện & Dịch Vụ"]
+        DE --> APP["Streamlit Interactive Dashboard (app.py)"]
+        DE --> API["FastAPI RESTful Gateway (main.py)"]
+        DE --> CLI["CLI Terminal Analysis (run_analysis.py)"]
+        DE --> BOT["Trợ lý AI Đầu tư Local LLM (chatbot_bot.py)"]
+    end
+```
+
+---
+
+## 📊 Bảng Chi Tiết 12 Chỉ Số Định Lượng
+
+| Nhóm | Chỉ số | Công thức / Đo lường | Ngưỡng đánh giá chuẩn |
+|:---|:---|:---|:---|
+| **Cơ bản** | **Biên Lợi Nhuận Gộp** | $\frac{\text{Lợi nhuận gộp}}{\text{Doanh thu thuần}}$ | $\ge 25\%$ (Lợi thế cạnh tranh con hào kinh tế) |
+| **Cơ bản** | **Biên EBIT** | $\frac{\text{EBIT}}{\text{Doanh thu thuần}}$ | $\ge 15\%$ (Hiệu quả hoạt động cốt lõi) |
+| **Cơ bản** | **Chất Lượng Dòng Tiền** | $\frac{\text{CFO}}{\text{LNST}}$ | $\ge 1.0$ (Lợi nhuận được bảo chứng bằng tiền mặt thật) |
+| **Cơ bản** | **Dòng Tiền Tự Do (FCF)** | $\text{CFO} - \text{CAPEX}$ | Dương và tăng trưởng bền vững |
+| **Cơ bản** | **ROE** | $\frac{\text{LNST}}{\text{Vốn chủ sở hữu bình quân}}$ | $\ge 15\%$ (Sinh lời vốn cổ đông xuất sắc) |
+| **Cơ bản** | **ROIC** | $\frac{\text{NOPAT}}{\text{Vốn đầu tư}}$ | $\ge \text{WACC} + 3\%$ (Tạo lập giá trị kinh tế gia tăng) |
+| **Cơ bản** | **Đòn Bẩy Nợ Vay (D/E)** | $\frac{\text{Tổng nợ vay có lãi}}{\text{Vốn chủ sở hữu}}$ | $\le 1.0$ (Cấu trúc vốn an toàn) |
+| **Cơ bản** | **Hệ Số Thanh Toán Hiện Hành** | $\frac{\text{Tài sản ngắn hạn}}{\text{Nợ ngắn hạn}}$ | $\ge 1.5$ (Thanh khoản lành mạnh) |
+| **Định giá** | **P/E (TTM)** | $\frac{\text{Thị giá}}{\text{EPS TTM}}$ | So sánh với P/E lịch sử và P/E trung vị ngành |
+| **Định giá** | **P/B** | $\frac{\text{Thị giá}}{\text{Giá trị sổ sách/CP}}$ | So sánh với ROE tương ứng |
+| **Kỹ thuật** | **RSI (14) Wilder** | Công thức làm mượt cổ điển Wilder | $30 - 70$ (Tránh mua khi quá mua $>70$) |
+| **Rủi ro** | **Altman Z-Score** | $1.2X_1 + 1.4X_2 + 3.3X_3 + 0.6X_4 + 0.999X_5$ | $> 2.9$ (Vùng an toàn - Safe Zone) |
+
+---
+
+## ⚡ Hướng Dẫn Cài Đặt & Khởi Chạy Nhanh
+
+### 1. Khởi tạo môi trường ảo
+
+Yêu cầu **Python 3.10 trở lên** (khuyến nghị Python 3.12 hoặc 3.13):
 
 ```bash
-# Mở thư mục dự án trong VS Code
-code ai_financial_platform
+# Clone dự án
+git clone https://github.com/ducnguyen20806-rgb/AI-FINANCIAL-INVESTMENT-INTELLIGENCE.git
+cd AI-FINANCIAL-INVESTMENT-INTELLIGENCE
 
 # Tạo môi trường ảo
 python -m venv .venv
 
-# Kích hoạt — Windows
-.venv\Scripts\activate
-# Kích hoạt — macOS / Linux
+# Kích hoạt trên Windows (PowerShell):
+.\.venv\Scripts\Activate.ps1
+# Hoặc trên macOS/Linux:
 source .venv/bin/activate
 
-# Cài thư viện
+# Cài đặt toàn bộ thư viện cần thiết
 pip install -r requirements.txt
-
-# Tạo file cấu hình
-copy .env.example .env      # Windows
-cp .env.example .env        # macOS / Linux
 ```
 
-Trong VS Code, nhấn `Ctrl+Shift+P` → **Python: Select Interpreter** → chọn `.venv`.
+### 2. Cấu hình biến môi trường (`.env`)
 
----
-
-## 2. Chạy hệ thống
-
-### Cách 1 — Chỉ chạy giao diện (nhanh nhất)
-
-```bash
-streamlit run app.py
-```
-
-Mở http://localhost:8501. Ở thanh bên để chế độ **Trực tiếp (in-process)** — Streamlit gọi thẳng `DecisionEngine`, không cần bật API.
-
-### Cách 2 — Chạy tách tầng API + giao diện
-
-```bash
-# Terminal 1
-uvicorn main:app --reload --port 8000
-
-# Terminal 2
-streamlit run app.py
-```
-
-Ở thanh bên chọn **Qua API Gateway**. Tài liệu API tự sinh tại http://localhost:8000/docs.
-
-### Cách 3 — Chạy bằng phím F5 trong VS Code
-
-File `.vscode/launch.json` đã cấu hình sẵn 4 lựa chọn:
-
-| Cấu hình | Tác dụng |
-|---|---|
-| `Streamlit: Giao diện` | Chạy và gỡ lỗi giao diện |
-| `FastAPI: API Gateway` | Chạy và gỡ lỗi API |
-| `Kiểm thử nhanh: 1 mã cổ phiếu` | Chạy `run_analysis.py FPT` trong terminal |
-| `Chạy cả API + Giao diện` | Bật đồng thời cả hai tiến trình |
-
-### Cách 4 — Dòng lệnh
-
-```bash
-python run_analysis.py FPT           # in báo cáo ra terminal
-python run_analysis.py FPT --json    # xuất JSON thô
-python test_system.py                # chạy 46 kiểm thử hệ thống
-```
-
----
-
-## 3. Kết nối dữ liệu thật SSI FastConnect
-
-Điền vào file `.env`:
+Hệ thống sử dụng một file `.env` duy nhất tại thư mục gốc. Khi chạy lần đầu, bạn có thể tạo `.env` với nội dung:
 
 ```env
-SSI_CONSUMER_ID=<mã định danh của bạn>
-SSI_CONSUMER_SECRET=<khoá bí mật của bạn>
+# --- Kết nối SSI FastConnect v2 (Tùy chọn) ---
+SSI_CONSUMER_ID=your_consumer_id_here
+SSI_CONSUMER_SECRET=your_consumer_secret_here
+SSI_BASE_URL=https://fc-data.ssi.com.vn/api/v2
+SSI_FINANCIAL_ENDPOINT=/Market/CompanyFinancialRatio
+
+# --- Chế độ dữ liệu ---
 USE_MOCK=false
+FALLBACK_TO_MOCK=true
+
+# --- Tham số mô hình định lượng ---
+RISK_FREE_RATE=0.030
+EQUITY_RISK_PREMIUM=0.080
+CORPORATE_TAX_RATE=0.20
+TERMINAL_GROWTH=0.030
+MARKET_INDEX=VNINDEX
 ```
 
-Khi chưa điền khoá, hệ thống chạy bằng **dữ liệu mô phỏng tất định** — mọi tính năng vẫn hoạt động đầy đủ để phát triển và demo, và giao diện hiển thị rõ cảnh báo đang dùng dữ liệu mô phỏng.
-
-**Một lưu ý vận hành quan trọng:** gói FastConnect Data v2 tiêu chuẩn cung cấp dữ liệu giá (`DailyStockPrice`, `DailyOhlc`, `DailyIndex`) nhưng endpoint báo cáo tài chính phụ thuộc gói dịch vụ bạn đăng ký. Nếu endpoint `SSI_FINANCIAL_ENDPOINT` không khả dụng, Module 1 vẫn lấy dữ liệu giá thật từ SSI và chỉ thay phần báo cáo tài chính bằng dữ liệu mô phỏng, đồng thời ghi cảnh báo vào trường `warnings` của payload để bạn biết con số nào là thật, con số nào không. Muốn dùng nguồn BCTC khác (VietStock, FiinPro, cafef…), chỉ cần viết thêm một lớp adapter có cùng các phương thức như `MockDataSource` rồi khai báo trong `UserAPIDataSource`.
+> **Ghi chú:** Khi chưa có tài khoản SSI FastConnect, hệ thống sẽ tự động sử dụng **Vnstock 4.x** để lấy giá thật từ sàn và kích hoạt **MockDataSource tất định** cho các trường hợp thiếu BCTC, đảm bảo 100% chức năng phân tích vẫn chạy trơn tru mà không bị gián đoạn.
 
 ---
 
-## 4. Cấu trúc dự án
+### 3. Vận hành Nền tảng
 
+#### Cách 1 — Chạy Giao diện Trực quan Streamlit (Khuyên dùng)
+```bash
+streamlit run app.py
 ```
-ai_financial_platform/
-├── .vscode/                 Cấu hình VS Code (F5, tasks, tiện ích khuyến nghị)
-├── .streamlit/config.toml   Theme tối cho Streamlit
-├── common/utils.py          Toán an toàn: safe_div, safe_float, CAGR, định dạng VNĐ
-├── config.py                Cấu hình tập trung, đọc .env
-│
-├── Module1/
-│   ├── data_source.py       Adapter SSI FastConnect + Facade + fallback
-│   └── mock_source.py       Nguồn dữ liệu mô phỏng tất định
-├── Module2/fundamental_engine.py    Biên lợi nhuận, CFO/LNST, ROE/ROIC, đòn bẩy, CAGR
-├── Module3/valuation_engine.py      WACC, DCF 5 năm + Terminal Value, P/E P/B ngành
-├── Module4/technical_engine.py      EMA, RSI Wilder, MACD, hỗ trợ/kháng cự
-├── Module5/risk_engine.py           Altman Z-Score, Beta, biến động, VaR, drawdown
-├── Module6/
-│   ├── ml_financial_engine.py       Random Forest, 3 kịch bản giá, chấm điểm 5 trụ cột
-│   └── decision_engine.py           Điều phối, 12 chỉ số, khuyến nghị, nhật ký
-│
-├── main.py                  API Gateway (FastAPI)
-├── app.py                   Giao diện (Streamlit)
-├── ui/theme.py              Bảng màu bảng giá HOSE + CSS
-├── ui/charts.py             Biểu đồ Plotly
-├── run_analysis.py          Chạy phân tích từ dòng lệnh
-└── test_system.py           46 kiểm thử hệ thống
+👉 Mở trình duyệt tại: `http://localhost:8501`
+
+#### Cách 2 — Chạy RESTful API Gateway (FastAPI)
+```bash
+uvicorn main:app --reload --port 8000
+```
+👉 Truy cập Swagger UI tương tác tại: `http://localhost:8000/docs`
+
+#### Cách 3 — Chạy Phân tích Nhanh từ Dòng lệnh (CLI)
+```bash
+# In báo cáo phân tích tổng quan
+python run_analysis.py FPT
+
+# Xuất kết quả phân tích chuẩn JSON
+python run_analysis.py FPT --json
 ```
 
-### Luồng dữ liệu
-
+#### Cách 4 — Chạy Bộ Kiểm Thử Hệ Thống (55 Tests)
+```bash
+python test_system.py
 ```
-Người dùng nhập mã
-        │
-        ▼
-Module 1  ─ xác thực JWT, lấy giá khớp lệnh + OHLC 1 năm + BCTC
-        │
-        ├──▶ Module 2  cơ bản (biên LN, ROE, ROIC, FCF, CAGR)
-        │
-        ├──▶ Module 5  rủi ro (Altman Z, Beta, biến động)  ──┐
-        │                                                    │ Beta
-        ├──▶ Module 3  định giá (WACC ◀── Beta, DCF, P/E) ◀──┘
-        │
-        ├──▶ Module 4  kỹ thuật (EMA, RSI, MACD, S/R)
-        │
-        ▼
-Module 6  ─ Random Forest → 3 kịch bản giá
-          ─ chấm điểm 5 trụ cột → Investment Score
-          ─ đóng gói 12 chỉ số + khuyến nghị + nhật ký
-        │
-        ▼
-JSON  →  API Gateway  →  Giao diện Streamlit
-```
-
-Thứ tự gọi Module 5 trước Module 3 là có chủ đích: WACC cần Beta, mà Beta được tính từ tương quan giữa lợi suất cổ phiếu và VNINDEX ở Module 5.
 
 ---
 
-## 5. Các công thức cốt lõi
+## 💬 Trợ Lý AI Đầu Tư Tích Hợp (Ollama Local LLM)
 
-**WACC**
-
-```
-WACC = We · Re + Wd · Rd · (1 − t)
-Re   = Rf + β · ERP                    (CAPM)
-Rd   = Chi phí lãi vay / Tổng nợ vay   (chặn trong [3%, 15%])
-```
-
-WACC được chặn dưới ở mức `g + 2%` để mẫu số của Terminal Value luôn dương.
-
-**DCF nhiều giai đoạn**
-
-```
-              5     FCF_t              TV
-Giá trị DN = Σ   ───────────  +  ─────────────
-             t=1  (1+WACC)^t      (1+WACC)^5
-
-TV = FCF_5 · (1+g) / (WACC − g),  g = 3%
-Giá trị/CP = (Giá trị DN − Nợ thuần) / Số CP lưu hành
-```
-
-Tốc độ tăng trưởng giai đoạn dự báo lấy từ CAGR doanh thu thực tế, chặn trong `[−5%, min(20%, WACC+8%)]` để Terminal Value không bị thổi phồng.
-
-**Giá trị hợp lý tổng hợp** = 60% DCF + 40% định giá so sánh theo bội số ngành. Giá mua hợp lý = giá trị hợp lý × 0.85 (biên an toàn 15%).
-
-**Altman Z-Score**
-
-```
-Z = 1.2·X1 + 1.4·X2 + 3.3·X3 + 0.6·X4 + 0.999·X5
-```
-
-**Investment Score**
-
-```
-Tổng = 0.25·Cơ bản + 0.25·Định giá + 0.20·Rủi ro + 0.20·Chất lượng + 0.10·Động lượng
-```
-
-Mỗi trụ cột dùng ánh xạ logistic thay vì tuyến tính: giá trị bằng mốc chuẩn cho 50 điểm, càng vượt xa càng tiệm cận 100 mà không bao giờ vượt quá. Cách này giúp một chỉ tiêu cực đoan (ví dụ ROE 90% do vốn chủ sở hữu quá nhỏ) không kéo lệch toàn bộ điểm số.
-
-**Dự báo giá (Random Forest)**
-
-Đặc trưng: giá đóng cửa, lợi suất, độ lệch chuẩn 10 phiên, MA20, khoảng cách giá so với MA20, động lượng 5 phiên, tỷ lệ khối lượng trên trung bình 20 phiên. Nhãn là giá đóng cửa sau 10 phiên.
-
-```
-Base = trung bình dự báo của 50 cây
-σ    = √(σ²_mô_hình + σ²_lịch_sử)
-Bull = Base + 1.96σ        Bear = Base − 1.96σ
-```
-
-Độ bất định lấy từ hai nguồn: độ phân tán dự báo giữa các cây trong rừng và biến động lịch sử quy đổi theo chân trời dự báo. Chỉ dùng một trong hai sẽ đánh giá thấp rủi ro thực.
+Tab 9 của ứng dụng tích hợp sẵn Trợ lý AI phân tích đầu tư hoạt động cục bộ thông qua mô hình ngôn ngữ lớn (LLM):
+1. Cài đặt [Ollama](https://ollama.com/) trên máy tính.
+2. Tải và chạy mô hình:
+   ```bash
+   ollama run qwen2.5
+   ```
+3. Cài đặt thư viện Python:
+   ```bash
+   pip install ollama
+   ```
+Trợ lý AI sẽ tự động đọc ngữ cảnh điểm số, 12 chỉ số tài chính, kịch bản giá ML và luận điểm đầu tư của cổ phiếu đang xem để đàm thoại và giải đáp chi tiết cho nhà đầu tư.
 
 ---
 
-## 6. Giao diện
+## 🧪 Đảm Bảo Chất Lượng & Tính Toàn Vẹn (Quality Assurance)
 
-Bảng màu lấy trực tiếp từ quy ước bảng giá HOSE — tím là giá trần, xanh lá tăng, vàng tham chiếu, đỏ giảm, xanh lơ giá sàn — nên mọi con số giá đọc được bằng phản xạ quen thuộc. Dải bảng giá ở đầu trang là điểm neo thị giác; phần còn lại giữ tiết chế để số liệu tự nói.
-
-Tám tab: **Tổng quan** (nến + điểm số + kịch bản giá), **12 chỉ số**, **Cơ bản**, **Định giá** (DCF, cơ cấu WACC), **Kỹ thuật** (RSI, MACD), **Rủi ro** (cấu phần Altman, drawdown), **Nhật ký đầu tư** (xuất CSV/JSON), **JSON** (payload thô).
-
-Thanh bên cho phép hiệu chỉnh trực tiếp Rf, ERP, g vĩnh viễn và thuế suất — thay đổi sẽ chạy lại toàn bộ mô hình định giá.
+Codebase được kiểm soát nghiêm ngặt với:
+- **Pyright Static Type Checker**: `0 errors, 0 warnings` (Chế độ `basic` type checking).
+- **Bộ 55 Unit & Robustness Tests**: Kiểm thử toàn diện từ tính toán WACC, DCF, EMA, RSI Wilder, Altman Z, đến khả năng xử lý an toàn dữ liệu khuyết thiếu và nến rỗng.
 
 ---
 
-## 7. API
+## 📜 Giấy phép
 
-| Endpoint | Mô tả |
-|---|---|
-| `GET /api/v1/analyze/{symbol}` | Phân tích toàn diện. Thêm `?refresh=true` để bỏ qua cache |
-| `GET /api/v1/quote/{symbol}` | Giá khớp lệnh |
-| `GET /api/v1/ohlc/{symbol}` | Chuỗi nến lịch sử |
-| `GET /api/v1/fundamental/{symbol}` | Chỉ tiêu cơ bản |
-| `GET /api/v1/technical/{symbol}` | Chỉ báo kỹ thuật |
-| `GET /api/v1/risk/{symbol}` | Chỉ tiêu rủi ro |
-| `GET /health` | Kiểm tra tình trạng dịch vụ và nguồn dữ liệu đang dùng |
+Dự án được phân phối dưới giấy phép **MIT License**. Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh!
 
-Kết quả được cache trong tiến trình 120 giây (chỉnh bằng `CACHE_TTL`).
-
----
-
-## 8. Giới hạn cần biết
-
-Vài điểm nên nắm rõ trước khi dùng kết quả để ra quyết định thật:
-
-- **R² in-sample của Random Forest luôn cao** vì đó là sai số trên chính tập huấn luyện, không phải năng lực dự báo ngoài mẫu. Muốn đánh giá thật, cần backtest walk-forward: huấn luyện trên dữ liệu đến ngày T, kiểm tra trên T+1 trở đi, lặp lại nhiều mốc. Đây là hạng mục mở rộng đáng làm tiếp theo.
-- **DCF rất nhạy với WACC và g.** Chênh 1 điểm phần trăm ở WACC có thể đổi giá trị nội tại 20-30%. Hãy dùng thanh trượt ở giao diện để xem vùng giá trị thay vì tin vào một con số duy nhất.
-- **Altman Z-Score được thiết kế cho doanh nghiệp sản xuất.** Áp dụng cho ngân hàng, chứng khoán, bảo hiểm sẽ cho kết quả méo vì cấu trúc bảng cân đối khác hẳn.
-- **Beta tính trên 250 phiên** nên phản ánh quá khứ gần, không phải rủi ro hệ thống dài hạn.
-- Hệ thống xuất ra số liệu định lượng để tham khảo, không phải khuyến nghị đầu tư được cấp phép.
-
----
-
-## 9. Hướng mở rộng
-
-Vài hướng phát triển tiếp theo, xếp theo mức độ hữu ích:
-
-1. Backtest walk-forward cho mô hình ML để đo năng lực dự báo ngoài mẫu.
-2. Lưu nhật ký đầu tư vào SQLite/PostgreSQL để theo dõi vị thế qua thời gian thay vì chỉ chụp ảnh tại một thời điểm.
-3. So sánh nhiều mã cùng lúc (màn hình lọc cổ phiếu theo Investment Score).
-4. Kết nối luồng streaming của SSI FastConnect để cập nhật giá theo thời gian thực.
-5. Thay bộ ngang hàng (peer group) mô phỏng bằng dữ liệu ngành thật để định giá so sánh có ý nghĩa.

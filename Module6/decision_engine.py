@@ -50,11 +50,11 @@ class DecisionEngine:
         started = time.perf_counter()
         symbol = symbol.upper().strip()
 
-        raw = raw or self.data_source.get_all_stock_data(symbol)
-        quote = raw.get("quote") or {}
-        ohlc = raw.get("ohlc") or []
-        index_ohlc = raw.get("index_ohlc") or []
-        financials = raw.get("financials") or {}
+        stock_data: dict[str, Any] = raw if raw is not None else (self.data_source.get_all_stock_data(symbol) or {})
+        quote: dict[str, Any] = stock_data.get("quote") or {}
+        ohlc: list[dict[str, Any]] = stock_data.get("ohlc") or []
+        index_ohlc: list[dict[str, Any]] = stock_data.get("index_ohlc") or []
+        financials: dict[str, Any] = stock_data.get("financials") or {}
 
         # --- Module 2: Cơ bản ---
         fundamentals = self.fundamental.analyze(financials)
@@ -89,8 +89,8 @@ class DecisionEngine:
         return {
             "symbol": symbol,
             "generated_at": datetime.now().isoformat(timespec="seconds"),
-            "data_source": raw.get("source", "UNKNOWN"),
-            "warnings": raw.get("warnings", []),
+            "data_source": stock_data.get("source", "UNKNOWN"),
+            "warnings": stock_data.get("warnings", []),
             "elapsed_ms": rnd(elapsed, 1),
             "quote": quote,
             "fundamentals": fundamentals,

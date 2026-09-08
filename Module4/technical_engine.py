@@ -99,11 +99,11 @@ class TechnicalEngine:
         if not ohlc or len(ohlc) < 30:
             return self._empty()
 
-        close = np.asarray([safe_float(r["close"]) for r in ohlc], dtype=float)
-        high = np.asarray([safe_float(r["high"]) for r in ohlc], dtype=float)
-        low = np.asarray([safe_float(r["low"]) for r in ohlc], dtype=float)
-        volume = np.asarray([safe_float(r["volume"]) for r in ohlc], dtype=float)
-        dates = [r["date"] for r in ohlc]
+        close = np.asarray([safe_float(r.get("close")) for r in ohlc], dtype=float)
+        high = np.asarray([safe_float(r.get("high")) for r in ohlc], dtype=float)
+        low = np.asarray([safe_float(r.get("low")) for r in ohlc], dtype=float)
+        volume = np.asarray([safe_float(r.get("volume")) for r in ohlc], dtype=float)
+        dates = [str(r.get("date", "")) for r in ohlc]
 
         ema20 = self.ema(close, 20)
         ema50 = self.ema(close, 50)

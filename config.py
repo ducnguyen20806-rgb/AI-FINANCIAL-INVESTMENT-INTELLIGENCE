@@ -95,8 +95,28 @@ class AppConfig:
     log_level: str = field(default_factory=lambda: _env("LOG_LEVEL", "INFO"))
 
 
+@dataclass
+class VnstockConfig:
+    """Cấu hình tích hợp Vnstock 4.x."""
+
+    api_key: str = field(default_factory=lambda: _env("VNSTOCK_API_KEY"))
+    quote_source: str = field(default_factory=lambda: _env("VNSTOCK_QUOTE_SOURCE", "VCI"))
+    finance_source: str = field(default_factory=lambda: _env("VNSTOCK_FINANCE_SOURCE", "VCI"))
+    enabled: bool = field(default_factory=lambda: _env_bool("VNSTOCK_ENABLED", True))
+
+
 ssi_config = SSIConfig()
 finance_config = FinanceConfig()
 app_config = AppConfig()
+vnstock_config = VnstockConfig()
 
-__all__ = ["ssi_config", "finance_config", "app_config", "SSIConfig", "FinanceConfig", "AppConfig"]
+__all__ = [
+    "ssi_config",
+    "finance_config",
+    "app_config",
+    "vnstock_config",
+    "SSIConfig",
+    "FinanceConfig",
+    "AppConfig",
+    "VnstockConfig",
+]

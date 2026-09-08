@@ -50,17 +50,17 @@ def safe_div(numerator: Any, denominator: Any, default: float = 0.0) -> float:
     return result
 
 
-def clamp(value: float, low: float, high: float) -> float:
+def clamp(value: Any, low: float, high: float) -> float:
     """Giới hạn giá trị trong đoạn [low, high]."""
     return max(low, min(high, safe_float(value)))
 
 
-def pct(value: float, digits: int = 2) -> float:
+def pct(value: Any, digits: int = 2) -> float:
     """Đổi tỷ lệ thập phân sang phần trăm, làm tròn."""
     return round(safe_float(value) * 100.0, digits)
 
 
-def rnd(value: float, digits: int = 2) -> float:
+def rnd(value: Any, digits: int = 2) -> float:
     """Làm tròn an toàn."""
     return round(safe_float(value), digits)
 
@@ -116,7 +116,7 @@ def fmt_ssi_date(dt: datetime) -> str:
 # ----------------------------------------------------------------------------
 
 
-def fmt_vnd(value: float, unit: str = "auto") -> str:
+def fmt_vnd(value: Any, unit: str = "auto") -> str:
     """
     Định dạng tiền VNĐ theo quy ước Việt Nam.
     unit='auto' tự chọn tỷ / triệu / đồng.
@@ -134,7 +134,7 @@ def fmt_vnd(value: float, unit: str = "auto") -> str:
     return f"{sign}{v:,.0f} đ"
 
 
-def fmt_num(value: float, digits: int = 2) -> str:
+def fmt_num(value: Any, digits: int = 2) -> str:
     """Định dạng số thường có phân tách hàng nghìn."""
     return f"{safe_float(value):,.{digits}f}"
 

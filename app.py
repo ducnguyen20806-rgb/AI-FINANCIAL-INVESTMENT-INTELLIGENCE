@@ -24,7 +24,7 @@ import requests
 import streamlit as st
 
 from common.utils import fmt_vnd, pct, safe_float
-from config import app_config, finance_config, ssi_config
+from config import app_config, finance_config
 from ui.charts import (
     candlestick_chart,
     dcf_chart,
@@ -57,7 +57,7 @@ st.markdown(build_css(), unsafe_allow_html=True)
 # ---------------------------------------------------------------------------
 # Tầng dữ liệu
 # ---------------------------------------------------------------------------
-@st.cache_data(ttl=2, show_spinner=False)
+@st.cache_data(ttl=app_config.cache_ttl_seconds, show_spinner=False)
 def analyze_direct(symbol: str, rf: float, erp: float, g: float,
                    tax: float) -> dict[str, Any]:
     """Gọi thẳng DecisionEngine trong tiến trình Streamlit."""
@@ -212,19 +212,20 @@ with st.sidebar:
                     float(finance_config.corporate_tax_rate), 0.01, format="%.2f")
 
     st.markdown("---")
-    from common.ssi_client import get_ssi_access_token
-    token = get_ssi_access_token()
-    src_ok = bool(token) and not app_config.use_mock
+    from Module1.data_source import get_data_source
+    active_src = get_data_source().active_source
+    src_ok = (active_src != "MOCK")
+    source_label = "SSI FastConnect Data v2" if active_src == "SSI" else ("Vnstock 4.x (Real Data)" if active_src == "Vnstock" else "Dữ liệu mô phỏng (Mock)")
 
     st.markdown(
         f'<div style="font-size:11.5px;color:{COLORS["muted"]}">Nguồn dữ liệu<br>'
         f'<span style="color:{COLORS["up"] if src_ok else COLORS["reference"]};'
         f'font-weight:600">'
-        f'{"SSI FastConnect Data v2" if src_ok else "Dữ liệu mô phỏng"}</span></div>',
+        f'{source_label}</span></div>',
         unsafe_allow_html=True,
     )
     if not src_ok:
-        st.caption("Khai báo SSI_CONSUMER_ID và SSI_CONSUMER_SECRET trong file .env để dùng dữ liệu thật.")
+        st.caption("Khai báo SSI_CONSUMER_ID hoặc bật VNSTOCK_ENABLED trong file .env để dùng dữ liệu thật.")
 
 
 # ---------------------------------------------------------------------------
@@ -337,7 +338,7 @@ st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
 # --- Tabs ---
 tabs = st.tabs([
     "Tổng quan", "12 chỉ số", "Cơ bản", "Định giá",
-    "Kỹ thuật", "Rủi ro", "Nhật ký đầu tư", "JSON",
+    "Kỹ thuật", "Rủi ro", "Nhật ký đầu tư", "JSON", "💬 Trợ lý AI",
 ])
 
 # ============================ TAB 1: TỔNG QUAN =============================
@@ -570,7 +571,10 @@ with tabs[6]:
         ("Tỷ trọng danh mục", f"{safe_float(j.get('position_size_pct')):.2f}% NAV"),
         ("Trạng thái vị thế", j.get("status", "")),
     ]
-    df_journal = pd.DataFrame(journal_rows, columns=["Trường", "Nội dung"])
+    df_journal = pd.DataFrame({
+        "Trường": [r[0] for r in journal_rows],
+        "Nội dung": [r[1] for r in journal_rows],
+    })
     st.dataframe(df_journal, use_container_width=True, hide_index=True,
                  column_config={"Nội dung": st.column_config.TextColumn(width="large")})
 
@@ -603,6 +607,59 @@ with tabs[7]:
     st.markdown("**Payload JSON trả về từ Module 6** — chính là dữ liệu mà API Gateway phục vụ")
     st.code(f"GET {api_url}/api/v1/analyze/{symbol}", language="bash")
     st.json(data, expanded=False)
+
+# ============================ TAB 9: TRỢ LÝ AI =============================
+with tabs[8]:
+    st.markdown(f"**💬 Trợ lý AI Phân tích Đầu tư ({symbol})**")
+    st.caption("Trợ lý AI tích hợp dữ liệu định lượng thời gian thực, mô hình định giá DCF và chỉ số tài chính.")
+
+    try:
+        from chatbot_bot import StockChatBot
+        bot = StockChatBot()
+    except Exception as exc:
+        st.error(f"Không thể khởi tạo StockChatBot: {exc}")
+        bot = None
+
+    if bot:
+        if "chat_symbol" not in st.session_state or st.session_state.chat_symbol != symbol:
+            st.session_state.chat_symbol = symbol
+            st.session_state.chat_history = []
+        elif "chat_history" not in st.session_state:
+            st.session_state.chat_history = []
+
+        # Hiển thị lịch sử chat
+        for role, msg in st.session_state.chat_history:
+            with st.chat_message(role):
+                st.markdown(msg)
+
+        # Gợi ý câu hỏi nhanh
+        st.markdown("**Gợi ý câu hỏi nhanh:**")
+        q_cols = st.columns(3)
+        preset_questions = [
+            f"Đánh giá tổng quan tiềm năng đầu tư mã {symbol}?",
+            f"Mức định giá DCF và P/E của {symbol} có hấp dẫn không?",
+            f"Các rủi ro chính và ngưỡng cắt lỗ của {symbol} là gì?",
+        ]
+        selected_preset = None
+        for idx, q_text in enumerate(preset_questions):
+            if q_cols[idx].button(q_text, key=f"preset_btn_{idx}"):
+                selected_preset = q_text
+
+        user_query = st.chat_input(f"Đặt câu hỏi cho Trợ lý AI về {symbol}...") or selected_preset
+
+        if user_query:
+            st.session_state.chat_history.append(("user", user_query))
+            with st.chat_message("user"):
+                st.markdown(user_query)
+
+            with st.chat_message("assistant"):
+                with st.spinner("AI đang phân tích dữ liệu..."):
+                    reply = bot.ask(user_query, context_data=data)
+                st.markdown(reply)
+                st.session_state.chat_history.append(("assistant", reply))
+
+            if selected_preset:
+                st.rerun()
 
 # --- Chân trang ---
 st.markdown(

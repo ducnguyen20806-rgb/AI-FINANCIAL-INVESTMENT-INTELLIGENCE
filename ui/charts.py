@@ -12,18 +12,39 @@ from typing import Any
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from common.utils import safe_float
 from ui.theme import COLORS, PILLAR_LABELS, plotly_layout, score_color
+
+
+def _add_hline(fig: go.Figure, **kwargs: Any) -> None:
+    """Helper gọi add_hline tránh lỗi type stub row/col của plotly."""
+    fig_any: Any = fig
+    fig_any.add_hline(**kwargs)
 
 
 def candlestick_chart(technical: dict[str, Any], months: int = 12) -> go.Figure:
     """Biểu đồ nến + EMA20/EMA50 + khối lượng + vùng hỗ trợ/kháng cự."""
     s = technical.get("series") or {}
-    dates = s.get("date", [])
-    if not dates:
+    dates = s.get("date") or []
+    closes = s.get("close") or []
+    if not dates or not closes:
         return _empty_fig("Không có dữ liệu nến.")
 
-    n = min(len(dates), months * 21)
+    n = min(len(dates), len(closes), months * 21)
+    if n == 0:
+        return _empty_fig("Không có dữ liệu nến.")
     sl = slice(-n, None)
+
+    opens = s.get("open") or closes
+    highs = s.get("high") or closes
+    lows = s.get("low") or closes
+    volumes = s.get("volume") or [0] * len(closes)
+
+    open_slice = opens[sl] if len(opens) >= n else closes[sl]
+    high_slice = highs[sl] if len(highs) >= n else closes[sl]
+    low_slice = lows[sl] if len(lows) >= n else closes[sl]
+    close_slice = closes[sl]
+    vol_slice = volumes[sl] if len(volumes) >= n else [0] * n
 
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True,
@@ -32,8 +53,8 @@ def candlestick_chart(technical: dict[str, Any], months: int = 12) -> go.Figure:
 
     fig.add_trace(
         go.Candlestick(
-            x=dates[sl], open=s["open"][sl], high=s["high"][sl],
-            low=s["low"][sl], close=s["close"][sl], name="Giá",
+            x=dates[sl], open=open_slice, high=high_slice,
+            low=low_slice, close=close_slice, name="Giá",
             increasing=dict(line=dict(color=COLORS["up"], width=1),
                             fillcolor=COLORS["up"]),
             decreasing=dict(line=dict(color=COLORS["down"], width=1),
@@ -43,35 +64,35 @@ def candlestick_chart(technical: dict[str, Any], months: int = 12) -> go.Figure:
     )
     for key, label, color in (("ema20", "EMA20", COLORS["accent"]),
                               ("ema50", "EMA50", COLORS["ceiling"])):
-        if s.get(key):
+        series_val = s.get(key)
+        if series_val and len(series_val) >= n:
             fig.add_trace(
-                go.Scatter(x=dates[sl], y=s[key][sl], name=label, mode="lines",
+                go.Scatter(x=dates[sl], y=series_val[sl], name=label, mode="lines",
                            line=dict(color=color, width=1.4)),
                 row=1, col=1,
             )
 
-    support = technical.get("support", 0)
-    resistance = technical.get("resistance", 0)
+    support = safe_float(technical.get("support", 0))
+    resistance = safe_float(technical.get("resistance", 0))
     for level, label, color in ((resistance, "Kháng cự", COLORS["down"]),
                                 (support, "Hỗ trợ", COLORS["up"])):
-        if level:
-            fig.add_hline(y=level, line=dict(color=color, width=1, dash="dot"),
-                          annotation_text=f"{label} {level:,.0f}",
-                          annotation_font=dict(size=10, color=color),
-                          annotation_position="right", row=1, col=1)
+        if level > 0:
+            _add_hline(fig, y=level, line=dict(color=color, width=1, dash="dot"),
+                       annotation_text=f"{label} {level:,.0f}",
+                       annotation_font=dict(size=10, color=color),
+                       annotation_position="right", row=1, col=1)
 
-    closes = s["close"][sl]
-    opens = s["open"][sl]
-    vol_colors = [COLORS["up"] if c >= o else COLORS["down"]
-                  for c, o in zip(closes, opens)]
+    vol_colors = [COLORS["up"] if safe_float(c) >= safe_float(o) else COLORS["down"]
+                  for c, o in zip(close_slice, open_slice)]
     fig.add_trace(
-        go.Bar(x=dates[sl], y=s["volume"][sl], name="Khối lượng",
+        go.Bar(x=dates[sl], y=vol_slice, name="Khối lượng",
                marker=dict(color=vol_colors), opacity=0.55),
         row=2, col=1,
     )
 
     layout = plotly_layout(height=470)
-    layout.pop("xaxis"); layout.pop("yaxis")
+    layout.pop("xaxis", None)
+    layout.pop("yaxis", None)
     fig.update_layout(**layout, xaxis_rangeslider_visible=False, showlegend=True, barmode="overlay")
     fig.update_xaxes(gridcolor=COLORS["line"], showgrid=False)
     fig.update_yaxes(gridcolor=COLORS["line"], row=1, col=1, title_text="Giá (VNĐ)")
@@ -82,34 +103,45 @@ def candlestick_chart(technical: dict[str, Any], months: int = 12) -> go.Figure:
 def momentum_chart(technical: dict[str, Any], months: int = 6) -> go.Figure:
     """RSI(14) Wilder và MACD trên cùng một khung."""
     s = technical.get("series") or {}
-    dates = s.get("date", [])
-    if not dates:
+    dates = s.get("date") or []
+    rsi_vals = s.get("rsi14") or []
+    if not dates or not rsi_vals:
         return _empty_fig("Không có dữ liệu chỉ báo.")
 
-    n = min(len(dates), months * 21)
+    n = min(len(dates), len(rsi_vals), months * 21)
+    if n == 0:
+        return _empty_fig("Không có dữ liệu chỉ báo.")
     sl = slice(-n, None)
+
+    macd_vals = s.get("macd") or []
+    sig_vals = s.get("macd_signal") or []
+    hist_vals = s.get("macd_hist") or []
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
                         row_heights=[0.5, 0.5], vertical_spacing=0.08,
                         subplot_titles=("RSI 14 (Wilder)", "MACD 12-26-9"))
 
-    fig.add_trace(go.Scatter(x=dates[sl], y=s.get("rsi14", [])[sl], name="RSI",
+    fig.add_trace(go.Scatter(x=dates[sl], y=rsi_vals[sl], name="RSI",
                              line=dict(color=COLORS["accent"], width=1.5)), row=1, col=1)
-    fig.add_hline(y=70, line=dict(color=COLORS["down"], width=1, dash="dot"), row=1, col=1)
-    fig.add_hline(y=30, line=dict(color=COLORS["up"], width=1, dash="dot"), row=1, col=1)
-    fig.add_hline(y=50, line=dict(color=COLORS["line"], width=1), row=1, col=1)
+    _add_hline(fig, y=70, line=dict(color=COLORS["down"], width=1, dash="dot"), row=1, col=1)
+    _add_hline(fig, y=30, line=dict(color=COLORS["up"], width=1, dash="dot"), row=1, col=1)
+    _add_hline(fig, y=50, line=dict(color=COLORS["line"], width=1), row=1, col=1)
 
-    fig.add_trace(go.Scatter(x=dates[sl], y=s.get("macd", [])[sl], name="MACD",
-                             line=dict(color=COLORS["reference"], width=1.5)), row=2, col=1)
-    fig.add_trace(go.Scatter(x=dates[sl], y=s.get("macd_signal", [])[sl], name="Signal",
-                             line=dict(color=COLORS["ceiling"], width=1.3)), row=2, col=1)
-    hist = s.get("macd_hist", [])[sl]
-    hist_colors = [COLORS["up"] if (h or 0) >= 0 else COLORS["down"] for h in hist]
-    fig.add_trace(go.Bar(x=dates[sl], y=hist, name="Histogram",
-                         marker=dict(color=hist_colors), opacity=0.5), row=2, col=1)
+    if len(macd_vals) >= n:
+        fig.add_trace(go.Scatter(x=dates[sl], y=macd_vals[sl], name="MACD",
+                                 line=dict(color=COLORS["reference"], width=1.5)), row=2, col=1)
+    if len(sig_vals) >= n:
+        fig.add_trace(go.Scatter(x=dates[sl], y=sig_vals[sl], name="Signal",
+                                 line=dict(color=COLORS["ceiling"], width=1.3)), row=2, col=1)
+    if len(hist_vals) >= n:
+        hist = hist_vals[sl]
+        hist_colors = [COLORS["up"] if safe_float(h) >= 0 else COLORS["down"] for h in hist]
+        fig.add_trace(go.Bar(x=dates[sl], y=hist, name="Histogram",
+                             marker=dict(color=hist_colors), opacity=0.5), row=2, col=1)
 
     layout = plotly_layout(height=420)
-    layout.pop("xaxis"); layout.pop("yaxis")
+    layout.pop("xaxis", None)
+    layout.pop("yaxis", None)
     fig.update_layout(**layout, showlegend=True)
     fig.update_annotations(font=dict(size=11, color=COLORS["muted"]))
     fig.update_xaxes(gridcolor=COLORS["line"], showgrid=False)
@@ -202,24 +234,29 @@ def financial_history_chart(history: list[dict[str, Any]]) -> go.Figure:
     if not history:
         return _empty_fig("Không có lịch sử báo cáo tài chính.")
 
-    periods = [h["period"] for h in history]
+    periods = [str(h.get("period", "")) for h in history]
+    revs = [safe_float(h.get("revenue")) for h in history]
+    nis = [safe_float(h.get("net_income")) for h in history]
+    cfos = [safe_float(h.get("cfo")) for h in history]
+    margins = [safe_float(h.get("net_margin")) * 100 for h in history]
+
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    fig.add_trace(go.Bar(x=periods, y=[h["revenue"] for h in history], name="Doanh thu",
+    fig.add_trace(go.Bar(x=periods, y=revs, name="Doanh thu",
                          marker=dict(color=COLORS["line"])), secondary_y=False)
-    fig.add_trace(go.Bar(x=periods, y=[h["net_income"] for h in history], name="LNST",
+    fig.add_trace(go.Bar(x=periods, y=nis, name="LNST",
                          marker=dict(color=COLORS["accent"])), secondary_y=False)
-    fig.add_trace(go.Scatter(x=periods, y=[h["cfo"] for h in history], name="CFO",
+    fig.add_trace(go.Scatter(x=periods, y=cfos, name="CFO",
                              mode="lines+markers",
                              line=dict(color=COLORS["reference"], width=1.6)),
                   secondary_y=False)
-    fig.add_trace(go.Scatter(x=periods, y=[h["net_margin"] * 100 for h in history],
+    fig.add_trace(go.Scatter(x=periods, y=margins,
                              name="Biên LN ròng (%)", mode="lines",
                              line=dict(color=COLORS["ceiling"], width=1.6, dash="dot")),
                   secondary_y=True)
 
     layout = plotly_layout(height=360)
-    layout.pop("yaxis")
+    layout.pop("yaxis", None)
     fig.update_layout(**layout, barmode="group", showlegend=True)
     fig.update_yaxes(title_text="VNĐ", secondary_y=False, gridcolor=COLORS["line"])
     fig.update_yaxes(title_text="%", secondary_y=True, showgrid=False)
@@ -229,11 +266,11 @@ def financial_history_chart(history: list[dict[str, Any]]) -> go.Figure:
 def wacc_chart(wacc_detail: dict[str, Any]) -> go.Figure:
     """Cơ cấu chi phí vốn: tỷ trọng và chi phí từng cấu phần."""
     labels = ["Vốn chủ sở hữu (Re)", "Nợ vay sau thuế (Rd)"]
-    tax = wacc_detail.get("tax_rate", 0.20)
-    weights = [wacc_detail.get("weight_equity", 0) * 100,
-               wacc_detail.get("weight_debt", 0) * 100]
-    costs = [wacc_detail.get("cost_of_equity", 0) * 100,
-             wacc_detail.get("cost_of_debt", 0) * (1 - tax) * 100]
+    tax = safe_float(wacc_detail.get("tax_rate", 0.20))
+    weights = [safe_float(wacc_detail.get("weight_equity", 0)) * 100,
+               safe_float(wacc_detail.get("weight_debt", 0)) * 100]
+    costs = [safe_float(wacc_detail.get("cost_of_equity", 0)) * 100,
+             safe_float(wacc_detail.get("cost_of_debt", 0)) * (1 - tax) * 100]
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(go.Bar(x=labels, y=weights, name="Tỷ trọng (%)",
@@ -248,7 +285,7 @@ def wacc_chart(wacc_detail: dict[str, Any]) -> go.Figure:
                   secondary_y=True)
 
     layout = plotly_layout(height=300)
-    layout.pop("yaxis")
+    layout.pop("yaxis", None)
     fig.update_layout(**layout, showlegend=True)
     fig.update_yaxes(title_text="Tỷ trọng %", range=[0, 110], secondary_y=False,
                      gridcolor=COLORS["line"])
@@ -260,16 +297,20 @@ def wacc_chart(wacc_detail: dict[str, Any]) -> go.Figure:
 def drawdown_chart(technical: dict[str, Any]) -> go.Figure:
     """Đường sụt giảm từ đỉnh (drawdown) của giá cổ phiếu."""
     s = technical.get("series") or {}
-    closes = s.get("close") or []
-    dates = s.get("date") or []
-    if not closes:
+    closes = [safe_float(c) for c in (s.get("close") or [])]
+    dates = [str(d) for d in (s.get("date") or [])]
+    if not closes or not dates:
         return _empty_fig("Không có dữ liệu giá.")
+
+    n = min(len(closes), len(dates))
+    closes = closes[:n]
+    dates = dates[:n]
 
     peak = closes[0]
     dd = []
     for c in closes:
         peak = max(peak, c)
-        dd.append((c / peak - 1.0) * 100 if peak else 0.0)
+        dd.append((c / peak - 1.0) * 100 if peak > 0 else 0.0)
 
     fig = go.Figure(
         go.Scatter(x=dates, y=dd, mode="lines", name="Drawdown",

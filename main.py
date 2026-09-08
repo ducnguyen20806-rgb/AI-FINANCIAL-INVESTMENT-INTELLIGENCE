@@ -76,12 +76,32 @@ def _clean_symbol(symbol: str) -> str:
 
 
 # ----------------------------------------------------------------------------
+def _get_active_source() -> str:
+    ds = get_data_source()
+    return getattr(ds, "active_source", getattr(ds, "source_name", "UNKNOWN"))
+
+
+def _get_analysis(symbol: str, refresh: bool = False) -> dict[str, Any]:
+    sym = _clean_symbol(symbol)
+    if not refresh:
+        cached = _cached(f"analyze:{sym}")
+        if cached:
+            return cached
+    try:
+        result = get_engine().analyze(sym)
+    except Exception as exc:  # noqa: BLE001 — biên giới dịch vụ
+        logger.exception("Lỗi phân tích %s", sym)
+        raise HTTPException(status_code=502, detail=f"Không phân tích được {sym}: {exc}") from exc
+    return _store(f"analyze:{sym}", result)
+
+
+# ----------------------------------------------------------------------------
 @app.get("/")
 def root() -> dict[str, Any]:
     return {
         "service": "AI Financial & Investment Intelligence Platform",
         "version": "1.0.0",
-        "data_source": get_data_source().active_source,
+        "data_source": _get_active_source(),
         "docs": "/docs",
         "endpoints": [
             "/api/v1/analyze/{symbol}",
@@ -96,23 +116,13 @@ def root() -> dict[str, Any]:
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    return {"status": "ok", "data_source": get_data_source().active_source}
+    return {"status": "ok", "data_source": _get_active_source()}
 
 
 @app.get("/api/v1/analyze/{symbol}")
 def analyze(symbol: str, refresh: bool = Query(False, description="Bỏ qua cache")) -> dict[str, Any]:
     """Phân tích toàn diện: 12 chỉ số, Investment Score, 3 kịch bản giá, nhật ký đầu tư."""
-    sym = _clean_symbol(symbol)
-    if not refresh:
-        cached = _cached(f"analyze:{sym}")
-        if cached:
-            return cached
-    try:
-        result = get_engine().analyze(sym)
-    except Exception as exc:  # noqa: BLE001 — biên giới dịch vụ
-        logger.exception("Lỗi phân tích %s", sym)
-        raise HTTPException(status_code=502, detail=f"Không phân tích được {sym}: {exc}") from exc
-    return _store(f"analyze:{sym}", result)
+    return _get_analysis(symbol, refresh=bool(refresh))
 
 
 @app.get("/api/v1/quote/{symbol}")
@@ -136,19 +146,20 @@ def ohlc(symbol: str, interval: str = "1D") -> dict[str, Any]:
 
 @app.get("/api/v1/fundamental/{symbol}")
 def fundamental(symbol: str) -> dict[str, Any]:
-    return {"symbol": _clean_symbol(symbol),
-            "fundamentals": analyze(symbol)["fundamentals"]}
+    res = _get_analysis(symbol)
+    return {"symbol": res["symbol"], "fundamentals": res["fundamentals"]}
 
 
 @app.get("/api/v1/technical/{symbol}")
 def technical(symbol: str) -> dict[str, Any]:
-    return {"symbol": _clean_symbol(symbol),
-            "technical": analyze(symbol)["technical"]}
+    res = _get_analysis(symbol)
+    return {"symbol": res["symbol"], "technical": res["technical"]}
 
 
 @app.get("/api/v1/risk/{symbol}")
 def risk(symbol: str) -> dict[str, Any]:
-    return {"symbol": _clean_symbol(symbol), "risk": analyze(symbol)["risk"]}
+    res = _get_analysis(symbol)
+    return {"symbol": res["symbol"], "risk": res["risk"]}
 
 
 if __name__ == "__main__":

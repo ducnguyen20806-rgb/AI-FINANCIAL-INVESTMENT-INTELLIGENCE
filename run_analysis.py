@@ -12,6 +12,11 @@ import argparse
 import json
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+    getattr(sys.stdout, "reconfigure")(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    getattr(sys.stderr, "reconfigure")(encoding="utf-8")
+
 from Module6.decision_engine import get_engine
 from common.utils import fmt_vnd, pct
 

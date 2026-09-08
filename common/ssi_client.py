@@ -1,7 +1,9 @@
-import os
+import logging
 import requests
 import pandas as pd
 from config import ssi_config, app_config
+
+logger = logging.getLogger(__name__)
 
 def get_ssi_access_token() -> str | None:
     """Lấy Access Token từ SSI FastConnect Data API v2."""
@@ -18,7 +20,7 @@ def get_ssi_access_token() -> str | None:
         if res.status_code == 200:
             return res.json().get("data", {}).get("accessToken")
     except Exception as e:
-        print(f"Lỗi lấy Token SSI: {e}")
+        logger.debug("Lỗi lấy Token SSI: %s", e)
     return None
 
 def fetch_company_financial_ratio(symbol: str) -> tuple[pd.DataFrame, str, bool]:
@@ -40,14 +42,14 @@ def fetch_company_financial_ratio(symbol: str) -> tuple[pd.DataFrame, str, bool]
 
     # 2. Thay thế bằng Vnstock (Dữ liệu THẬT) nếu SSI Endpoint BCTC bị chặn/lỗi
     try:
-        from vnstock import Vnstock
-        stock = Vnstock().stock(symbol=symbol, source='VND')
-        df_ratios = stock.finance.ratio(period='quarter', lang='vi')
+        from vnstock.api.financial import Finance
+        fin = Finance(symbol=symbol, source='VCI')
+        df_ratios = fin.ratio(period='quarter')
         
         if df_ratios is not None and not df_ratios.empty:
             return df_ratios, "SSI + Vnstock (Real Data)", False
     except Exception as e:
-        print(f"Lỗi Fallback Vnstock: {e}")
+        logger.debug("Lỗi Fallback Vnstock: %s", e)
 
     # 3. Chỉ trả về Mock nếu app_config.use_mock = True
     if app_config.use_mock:

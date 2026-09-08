@@ -16,6 +16,11 @@ import json
 import math
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+    getattr(sys.stdout, "reconfigure")(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    getattr(sys.stderr, "reconfigure")(encoding="utf-8")
+
 import numpy as np
 
 from Module1.mock_source import MockDataSource
@@ -252,6 +257,33 @@ def test_robustness() -> None:
                        "revenue_cagr": 0},
                       {"price": 0}, {"periods": [{}], "shares_outstanding": 0}, 1.0)
     check("Giá = 0 không gây chia cho 0", zero["pe"] == 0.0)
+
+    # RiskEngine biên
+    re = RiskEngine()
+    empty_risk = re.analyze({"periods": []}, [], [], 0.0)
+    check("RiskEngine với dữ liệu rỗng không ném ngoại lệ", "altman" in empty_risk and "market" in empty_risk)
+    check("Altman Z-Score rỗng = 0.0", empty_risk["altman"]["z_score"] == 0.0)
+
+    # MLFinancialEngine biên
+    from Module6.ml_financial_engine import MLFinancialEngine
+    mle = MLFinancialEngine()
+    empty_scenarios = mle.predict_scenarios([])
+    check("ML Engine chuỗi rỗng trả về fallback an toàn", empty_scenarios["base_case"] == 0.0)
+    short_scenarios = mle.predict_scenarios([{"date": "2025-01-01", "close": 50000, "volume": 1000}] * 5)
+    check("ML Engine chuỗi ngắn trả về Random Walk", "Random Walk" in short_scenarios["meta"]["model"])
+
+    # UI Charts biên
+    from ui.charts import candlestick_chart, momentum_chart, financial_history_chart, drawdown_chart, wacc_chart
+    fig_candle = candlestick_chart({})
+    check("candlestick_chart nhận dict rỗng không lỗi", fig_candle is not None)
+    fig_mom = momentum_chart({"series": {"date": [], "rsi14": []}})
+    check("momentum_chart nhận series rỗng không lỗi", fig_mom is not None)
+    fig_fin = financial_history_chart([{"period": "2025Q1", "revenue": None, "net_income": None, "cfo": None, "net_margin": None}])
+    check("financial_history_chart xử lý None an toàn", fig_fin is not None)
+    fig_dd = drawdown_chart({"series": {"close": [None, 100, 90, None], "date": ["d1", "d2", "d3", "d4"]}})
+    check("drawdown_chart xử lý None an toàn", fig_dd is not None)
+    fig_wacc = wacc_chart({})
+    check("wacc_chart nhận dict rỗng không lỗi", fig_wacc is not None)
 
 
 def main() -> int:

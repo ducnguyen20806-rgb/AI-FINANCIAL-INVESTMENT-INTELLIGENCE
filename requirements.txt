@@ -11,6 +11,12 @@ python-dotenv>=1.0
 fastapi>=0.110
 uvicorn[standard]>=0.27
 
+# --- Dữ liệu Thị trường & AI ---
+vnstock>=4.0.7
+vnai>=2.5.7
+ipykernel>=6.29
+
 # --- Giao diện ---
 streamlit>=1.32
 plotly>=5.20
+

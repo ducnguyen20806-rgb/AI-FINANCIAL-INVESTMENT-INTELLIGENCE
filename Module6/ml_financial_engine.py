@@ -34,6 +34,7 @@ try:
 
     SKLEARN_AVAILABLE = True
 except ImportError:  # pragma: no cover
+    RandomForestRegressor = None  # type: ignore[assignment, misc]
     SKLEARN_AVAILABLE = False
 
 
@@ -57,7 +58,7 @@ class MLFinancialEngine:
         """
         n = close.size
         returns = np.zeros(n)
-        returns[1:] = np.where(close[:-1] != 0, close[1:] / close[:-1] - 1.0, 0.0)
+        returns[1:] = np.where(close[:-1] != 0, close[1:] / np.where(close[:-1] == 0, 1.0, close[:-1]) - 1.0, 0.0)
 
         vol10 = np.full(n, np.nan)
         ma20 = np.full(n, np.nan)
@@ -86,14 +87,17 @@ class MLFinancialEngine:
     # 2. Dự báo kịch bản giá
     # ------------------------------------------------------------------
     def predict_scenarios(self, ohlc: list[dict[str, Any]]) -> dict[str, Any]:
-        close = np.asarray([safe_float(r["close"]) for r in ohlc], dtype=float)
-        volume = np.asarray([safe_float(r["volume"]) for r in ohlc], dtype=float)
-        last_price = float(close[-1]) if close.size else 0.0
+        close = np.asarray([safe_float(r.get("close")) for r in ohlc], dtype=float)
+        volume = np.asarray([safe_float(r.get("volume")) for r in ohlc], dtype=float)
+        last_price = safe_float(close[-1]) if close.size else 0.0
 
-        if close.size < self.MIN_SAMPLES or not SKLEARN_AVAILABLE:
+        if close.size < self.MIN_SAMPLES or not SKLEARN_AVAILABLE or RandomForestRegressor is None or last_price <= 0.0:
             return self._fallback_scenarios(close, last_price)
 
         X, idx = self.build_features(close, volume)
+        if X.size == 0 or idx.size == 0:
+            return self._fallback_scenarios(close, last_price)
+
         # Nhãn: giá đóng cửa sau HORIZON phiên
         target_idx = idx + self.HORIZON
         mask = target_idx < close.size
@@ -108,22 +112,22 @@ class MLFinancialEngine:
             max_depth=8,
             min_samples_leaf=3,
             random_state=42,
-            n_jobs=-1,
+            n_jobs=1,
         )
         model.fit(X_train, y_train)
 
         x_last = X[-1].reshape(1, -1)
         # Phân phối dự báo từ toàn bộ cây trong rừng -> đo bất định của mô hình
         tree_preds = np.asarray([t.predict(x_last)[0] for t in model.estimators_])
-        base = float(tree_preds.mean())
+        base = safe_float(tree_preds.mean(), default=last_price)
 
         # Sigma tổng hợp: bất định mô hình + biến động lịch sử theo horizon
-        model_sigma = float(tree_preds.std(ddof=1))
-        rets = np.where(close[:-1] != 0, close[1:] / close[:-1] - 1.0, 0.0)
-        hist_sigma = float(np.std(rets, ddof=1)) * math.sqrt(self.HORIZON) * last_price
+        model_sigma = safe_float(tree_preds.std(ddof=1)) if len(tree_preds) > 1 else 0.0
+        rets = np.where(close[:-1] != 0, close[1:] / np.where(close[:-1] == 0, 1.0, close[:-1]) - 1.0, 0.0)
+        hist_sigma = safe_float(np.std(rets, ddof=1)) * math.sqrt(self.HORIZON) * last_price if rets.size > 1 else 0.0
         sigma = math.sqrt(model_sigma ** 2 + hist_sigma ** 2)
 
-        in_sample_r2 = float(model.score(X_train, y_train))
+        in_sample_r2 = safe_float(model.score(X_train, y_train))
         importances = dict(
             zip(
                 ["close", "returns", "volatility_10d", "ma20", "dist_ma20", "momentum_5d", "volume_ratio"],
@@ -143,13 +147,13 @@ class MLFinancialEngine:
 
     def _fallback_scenarios(self, close: np.ndarray, last_price: float) -> dict[str, Any]:
         """Khi thiếu dữ liệu hoặc thiếu scikit-learn: dùng mô hình ngẫu nhiên bước."""
-        if close.size < 3:
+        if close.size < 3 or last_price <= 0.0:
             return self._pack_scenarios(last_price, 0.0, last_price,
                                         {"model": "Không đủ dữ liệu", "horizon_days": self.HORIZON})
-        rets = np.where(close[:-1] != 0, close[1:] / close[:-1] - 1.0, 0.0)
-        drift = float(np.mean(rets)) * self.HORIZON
-        sigma = float(np.std(rets, ddof=1)) * math.sqrt(self.HORIZON) * last_price
-        base = last_price * (1 + drift)
+        rets = np.where(close[:-1] != 0, close[1:] / np.where(close[:-1] == 0, 1.0, close[:-1]) - 1.0, 0.0)
+        drift = safe_float(np.mean(rets)) * self.HORIZON
+        sigma = safe_float(np.std(rets, ddof=1)) * math.sqrt(self.HORIZON) * last_price if rets.size > 1 else 0.0
+        base = max(last_price * (1 + drift), 0.0)
         return self._pack_scenarios(base, sigma, last_price, {
             "model": "Random Walk (dự phòng)",
             "horizon_days": self.HORIZON,

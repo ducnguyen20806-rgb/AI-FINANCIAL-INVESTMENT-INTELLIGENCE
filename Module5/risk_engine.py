@@ -86,7 +86,7 @@ class RiskEngine:
     # ------------------------------------------------------------------
     def market_risk(self, ohlc: list[dict[str, Any]],
                     index_ohlc: list[dict[str, Any]] | None) -> dict[str, Any]:
-        closes = [safe_float(r["close"]) for r in ohlc]
+        closes = [safe_float(r.get("close")) for r in ohlc]
         rets = to_returns(closes)
         if rets.size < 20:
             return {
@@ -96,18 +96,18 @@ class RiskEngine:
                 "annual_return": 0.0, "correlation_with_index": 0.0,
             }
 
-        daily_vol = float(np.std(rets, ddof=1))
+        daily_vol = safe_float(np.std(rets, ddof=1))
         annual_vol = daily_vol * np.sqrt(self.cfg.trading_days_per_year)
-        annual_return = float(np.mean(rets)) * self.cfg.trading_days_per_year
+        annual_return = safe_float(np.mean(rets)) * self.cfg.trading_days_per_year
 
         beta, corr = self._beta(rets, index_ohlc)
 
         prices = np.asarray(closes, dtype=float)
         running_max = np.maximum.accumulate(prices)
-        drawdown = np.where(running_max > 0, prices / running_max - 1.0, 0.0)
-        max_dd = float(np.min(drawdown))
+        drawdown = np.where(running_max > 0, prices / np.where(running_max == 0, 1.0, running_max) - 1.0, 0.0)
+        max_dd = safe_float(np.min(drawdown)) if drawdown.size else 0.0
 
-        var_95 = float(np.percentile(rets, 5))
+        var_95 = safe_float(np.percentile(rets, 5))
         sharpe = safe_div(annual_return - self.cfg.risk_free_rate, annual_vol)
 
         return {
@@ -127,21 +127,21 @@ class RiskEngine:
         if not index_ohlc or len(index_ohlc) < 21:
             return self.cfg.default_beta, 0.0
 
-        index_rets = to_returns([safe_float(r["close"]) for r in index_ohlc])
+        index_rets = to_returns([safe_float(r.get("close")) for r in index_ohlc])
         n = min(stock_rets.size, index_rets.size)
         if n < 20:
             return self.cfg.default_beta, 0.0
 
         s = stock_rets[-n:]
         m = index_rets[-n:]
-        var_m = float(np.var(m, ddof=1))
+        var_m = safe_float(np.var(m, ddof=1))
         if var_m == 0:
             return self.cfg.default_beta, 0.0
 
-        cov = float(np.cov(s, m, ddof=1)[0][1])
-        beta = cov / var_m
-        denom = float(np.std(s, ddof=1) * np.std(m, ddof=1))
-        corr = cov / denom if denom else 0.0
+        cov = safe_float(np.cov(s, m, ddof=1)[0][1])
+        beta = safe_div(cov, var_m, default=self.cfg.default_beta)
+        denom = safe_float(np.std(s, ddof=1) * np.std(m, ddof=1))
+        corr = safe_div(cov, denom, default=0.0)
         return beta, corr
 
     # ------------------------------------------------------------------

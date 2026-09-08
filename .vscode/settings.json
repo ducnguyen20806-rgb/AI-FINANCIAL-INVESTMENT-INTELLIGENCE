@@ -1,10 +1,15 @@
 {
-  "python.analysis.extraPaths": ["${workspaceFolder}"],
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}"
+  ],
   "python.analysis.typeCheckingMode": "basic",
   "python.terminal.activateEnvironment": true,
   "python.envFile": "${workspaceFolder}/.env",
   "editor.formatOnSave": true,
-  "editor.rulers": [100],
+  "editor.rulers": [
+    100
+  ],
   "files.exclude": {
     "**/__pycache__": true,
     "**/*.pyc": true
