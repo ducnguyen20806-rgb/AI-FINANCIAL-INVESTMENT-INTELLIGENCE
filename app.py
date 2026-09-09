@@ -49,6 +49,32 @@ st.set_page_config(
 st.markdown(build_css(), unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
+# Tầng dữ liệu (Data Layer)
+# ---------------------------------------------------------------------------
+@st.cache_data(ttl=app_config.cache_ttl_seconds, show_spinner=False)
+def analyze_direct(symbol: str, rf: float, erp: float, g: float,
+                   tax: float) -> dict[str, Any]:
+    """Gọi thẳng DecisionEngine trong tiến trình Streamlit."""
+    finance_config.risk_free_rate = rf
+    finance_config.equity_risk_premium = erp
+    finance_config.terminal_growth = g
+    finance_config.corporate_tax_rate = tax
+
+    from Module6.decision_engine import DecisionEngine
+    return DecisionEngine(config=finance_config).analyze(symbol)
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def analyze_via_api(symbol: str, base_url: str) -> dict[str, Any]:
+    """Gọi API Gateway."""
+    url = f"{base_url.rstrip('/')}/api/v1/analyze/{symbol}"
+    resp = requests.get(url, timeout=60)
+    if resp.status_code != 200:
+        raise RuntimeError(f"API trả về {resp.status_code}: {resp.text[:200]}")
+    return resp.json()
+
+
+# ---------------------------------------------------------------------------
 # Cổng bảo vệ xác thực (Lamp Login & Register Gateway)
 # ---------------------------------------------------------------------------
 if st.query_params.get("auth") == "true":
@@ -59,11 +85,29 @@ if st.query_params.get("auth") == "true":
 # Nếu chưa đăng nhập: chỉ hiển thị cổng Lamp Login rồi dừng lại
 # Khi đã đăng nhập: loại bỏ 100% phần đăng nhập, chỉ hiển thị Dashboard chính
 if not st.session_state.get("authenticated", False):
+    # Pre-heat nạp sẵn dữ liệu FPT ngầm ngay trong lúc user xem màn hình login
+    # Nhờ vậy, ngay khi bấm Đăng nhập, Dashboard đã có sẵn trong RAM và mở tức thì (<0.1s)!
+    if not st.session_state.get("_preheat_started", False):
+        st.session_state["_preheat_started"] = True
+        import threading
+        threading.Thread(
+            target=analyze_direct,
+            args=(
+                "FPT",
+                float(finance_config.risk_free_rate),
+                float(finance_config.equity_risk_premium),
+                float(finance_config.terminal_growth),
+                float(finance_config.corporate_tax_rate),
+            ),
+            daemon=True,
+        ).start()
+
     render_login_screen()
     st.stop()
 
 if st.session_state.pop("is_new_user", False):
     st.toast(f"🎉 Chào mừng {st.session_state.get('username', 'Trader')} gia nhập nền tảng định lượng!", icon="🚀")
+
 
 # ---------------------------------------------------------------------------
 # Tên đầy đủ của các cổ phiếu phổ biến
@@ -90,32 +134,6 @@ COMPANY_NAMES: dict[str, str] = {
     "VJC": "Công ty Cổ phần Hàng không VietJet",
     "PNJ": "Công ty Cổ phần Vàng bạc Đá quý Phú Nhuận",
 }
-
-
-# ---------------------------------------------------------------------------
-# Tầng dữ liệu
-# ---------------------------------------------------------------------------
-@st.cache_data(ttl=app_config.cache_ttl_seconds, show_spinner=False)
-def analyze_direct(symbol: str, rf: float, erp: float, g: float,
-                   tax: float) -> dict[str, Any]:
-    """Gọi thẳng DecisionEngine trong tiến trình Streamlit."""
-    finance_config.risk_free_rate = rf
-    finance_config.equity_risk_premium = erp
-    finance_config.terminal_growth = g
-    finance_config.corporate_tax_rate = tax
-
-    from Module6.decision_engine import DecisionEngine
-    return DecisionEngine(config=finance_config).analyze(symbol)
-
-
-@st.cache_data(ttl=120, show_spinner=False)
-def analyze_via_api(symbol: str, base_url: str) -> dict[str, Any]:
-    """Gọi API Gateway."""
-    url = f"{base_url.rstrip('/')}/api/v1/analyze/{symbol}"
-    resp = requests.get(url, timeout=60)
-    if resp.status_code != 200:
-        raise RuntimeError(f"API trả về {resp.status_code}: {resp.text[:200]}")
-    return resp.json()
 
 
 # ---------------------------------------------------------------------------

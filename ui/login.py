@@ -608,22 +608,23 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
       }}
     }}
 
-    // Hiệu ứng vật lý: Dây đèn giật dãn xuống -> Lò xo nảy bật lên -> Âm thanh cơ học -> Đèn bừng sáng!
-    updateCord(52);
-    setTimeout(() => {{
-      snapBack(() => {{
-        isOn = true;
-        playClickSound();
-        document.body.classList.add('lamp-on');
-        pullTooltip.innerHTML = '<span>✨</span> Đèn đã bật sáng! Đang mở khóa Dashboard...';
-        statusMsg.innerHTML = '<span style="color:#d8b45f;font-weight:700;font-size:13px;">💡 Đèn đã bật sáng! Chào mừng ' + user + '...</span>';
-        
-        // Tự động chuyển hướng vào Dashboard chính sau khi đèn sáng rực rỡ
-        setTimeout(() => {{
-          redirectToDashboard(user, action);
-        }}, 400);
-      }});
-    }}, 50);
+    // Bật đèn sáng rực và phát âm thanh cơ học ngay lập tức
+    isOn = true;
+    try {{ playClickSound(); }} catch(e) {{}}
+    document.body.classList.add('lamp-on');
+    pullTooltip.innerHTML = '<span>⚡</span> Đang mở khóa Dashboard...';
+    statusMsg.innerHTML = '<span style="color:#d8b45f;font-weight:700;font-size:13px;">⚡ Đã xác thực! Đang chuyển thẳng vào Dashboard...</span>';
+
+    // Hiệu ứng co dãn dây chạy song song ngầm
+    if (currentPull > 0) {{
+      snapBack();
+    }} else {{
+      updateCord(32);
+      setTimeout(() => {{ snapBack(); }}, 30);
+    }}
+
+    // Chuyển hướng ngay lập tức vào Dashboard chính (không chờ đợi)
+    redirectToDashboard(user, action);
   }}
 
   // Kéo thả chuột và cảm ứng

@@ -19,6 +19,7 @@ Hàm public:
 """
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import threading
 import time
@@ -32,6 +33,10 @@ from common.utils import fmt_ssi_date, safe_float
 from config import app_config, ssi_config
 
 logger = logging.getLogger(__name__)
+
+# Cache BCTC trong RAM (1 giờ) để tối ưu thời gian phản hồi tức thì
+_FINANCIALS_CACHE: dict[str, tuple[dict[str, Any], str, float]] = {}
+_FINANCIALS_CACHE_TTL = 3600.0
 
 
 class SSIAuthError(RuntimeError):
@@ -340,40 +345,56 @@ class SSIDataSource:
         }
 
     def _fallback_financials(self, symbol: str) -> tuple[dict[str, Any], str]:
-        """Thử lấy BCTC từ Vnstock 4.x trước khi rơi về Mock."""
+        """Thử lấy BCTC từ Vnstock 4.x trước khi rơi về Mock (có RAM cache & thực thi song song đa luồng)."""
+        symbol = symbol.upper().strip()
+        now = time.time()
+        cached = _FINANCIALS_CACHE.get(symbol)
+        if cached is not None:
+            data, label, ts = cached
+            if (now - ts) < _FINANCIALS_CACHE_TTL:
+                return data, label
+
         try:
             from config import vnstock_config
             if vnstock_config.enabled:
                 from vnstock.api.financial import Finance
                 from vnstock import Reference
                 fin = Finance(symbol=symbol, source=vnstock_config.finance_source)
-                df_inc = fin.income_statement(period="quarter")
+
+                # Chạy song song cả income_statement, balance_sheet và company info để giảm độ trễ
+                with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                    fut_inc = executor.submit(lambda: fin.income_statement(period="quarter"))
+                    fut_bs = executor.submit(lambda: fin.balance_sheet(period="quarter"))
+                    fut_info = executor.submit(lambda: Reference().company(symbol).info())
+
+                    df_inc = fut_inc.result(timeout=25)
+                    try:
+                        df_bs = fut_bs.result(timeout=25)
+                    except Exception:
+                        df_bs = None
+                    try:
+                        c_info = fut_info.result(timeout=15)
+                    except Exception:
+                        c_info = None
+
                 if df_inc is not None and not df_inc.empty:
                     period_cols = [c for c in df_inc.columns if "-" in str(c) and "Q" in str(c)]
                     if period_cols:
                         shares_out = 0.0
-                        try:
-                            c_info = Reference().company(symbol).info()
-                            if c_info is not None and not c_info.empty:
-                                for col in ("outstanding_shares", "shares_outstanding", "listed_volume"):
-                                    if col in c_info.columns:
-                                        val = safe_float(c_info[col].iloc[0])
-                                        if val > 0:
-                                            shares_out = val
-                                            break
-                        except Exception as e:
-                            logger.debug("Không thể lấy thông tin cổ phiếu %s: %s", symbol, e)
+                        if c_info is not None and not c_info.empty:
+                            for col in ("outstanding_shares", "shares_outstanding", "listed_volume"):
+                                if col in c_info.columns:
+                                    val = safe_float(c_info[col].iloc[0])
+                                    if val > 0:
+                                        shares_out = val
+                                        break
 
                         df_map = df_inc.set_index("item_id")
-
-                        # Thử lấy thêm Bảng Cân Đối Kế Toán để có số liệu nợ và tài sản thực tế
-                        df_bs_map = None
-                        try:
-                            df_bs = fin.balance_sheet(period="quarter")
-                            if df_bs is not None and not df_bs.empty and "item_id" in df_bs.columns:
-                                df_bs_map = df_bs.set_index("item_id")
-                        except Exception as bs_err:
-                            logger.debug("Không thể tải balance_sheet cho %s: %s", symbol, bs_err)
+                        df_bs_map = (
+                            df_bs.set_index("item_id")
+                            if (df_bs is not None and not df_bs.empty and "item_id" in df_bs.columns)
+                            else None
+                        )
 
                         periods: list[dict[str, Any]] = []
                         for p in sorted(period_cols)[-12:]:
@@ -424,42 +445,59 @@ class SSIDataSource:
                                 "cash": cash_val,
                             })
                         if len(periods) >= 4:
-                            return {
+                            res = {
                                 "periods": periods,
                                 "shares_outstanding": shares_out or 1_000_000_000.0,
                                 "sector": "Technology",
                                 "peers": {"pe": 18.0, "pb": 2.5, "roe": 0.20},
-                            }, "Vnstock 4.x (Real Data)"
+                            }
+                            _FINANCIALS_CACHE[symbol] = (res, "Vnstock 4.x (Real Data)", now)
+                            return res, "Vnstock 4.x (Real Data)"
         except Exception as err:
             logger.warning("Vnstock BCTC fallback lỗi: %s", err)
-        return MockDataSource().get_financial_ratios(symbol), "Dữ liệu mô phỏng (Mock)"
+
+        mock_data = MockDataSource().get_financial_ratios(symbol)
+        _FINANCIALS_CACHE[symbol] = (mock_data, "Dữ liệu mô phỏng (Mock)", now)
+        return mock_data, "Dữ liệu mô phỏng (Mock)"
 
     # ------------------------------------------------------------------
-    # 4. Orchestrator
+    # 4. Orchestrator (Thực thi song song đa luồng tối đa hóa tốc độ)
     # ------------------------------------------------------------------
     def get_all_stock_data(self, symbol: str) -> dict[str, Any]:
-        """Gom Realtime + OHLC 1 năm + BCTC chỉ qua một câu gọi duy nhất."""
+        """Gom Realtime + OHLC 1 năm + BCTC chỉ qua một câu gọi duy nhất (chạy song song đa luồng)."""
         symbol = symbol.upper().strip()
         warnings: list[str] = []
 
-        quote = self.get_quote(symbol)
-        ohlc = self.get_ohlc(symbol)
+        def _fetch_fin() -> tuple[dict[str, Any], str | None]:
+            try:
+                return self.get_financial_ratios(symbol), None
+            except SSIDataError as exc:
+                logger.warning("Không lấy được BCTC từ SSI: %s", exc)
+                f_data, src_lbl = self._fallback_financials(symbol)
+                return f_data, f"Endpoint BCTC SSI không khả dụng — chuyển sang nguồn bổ trợ: {src_lbl}."
 
-        try:
-            index_ohlc = self.get_index_ohlc()
-        except SSIDataError as exc:
-            logger.warning("Không lấy được chỉ số thị trường: %s", exc)
-            index_ohlc = []
-            warnings.append("Không lấy được VNINDEX — Beta dùng giá trị mặc định.")
+        def _fetch_idx() -> tuple[list[dict[str, Any]], str | None]:
+            try:
+                return self.get_index_ohlc(), None
+            except SSIDataError as exc:
+                logger.warning("Không lấy được chỉ số thị trường: %s", exc)
+                return [], "Không lấy được VNINDEX — Beta dùng giá trị mặc định."
 
-        try:
-            financials = self.get_financial_ratios(symbol)
-        except SSIDataError as exc:
-            logger.warning("Không lấy được BCTC từ SSI: %s", exc)
-            financials, source_label = self._fallback_financials(symbol)
-            warnings.append(
-                f"Endpoint BCTC SSI không khả dụng — chuyển sang nguồn bổ trợ: {source_label}."
-            )
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            fut_quote = executor.submit(self.get_quote, symbol)
+            fut_ohlc = executor.submit(self.get_ohlc, symbol)
+            fut_index = executor.submit(_fetch_idx)
+            fut_fin = executor.submit(_fetch_fin)
+
+            quote = fut_quote.result()
+            ohlc = fut_ohlc.result()
+            index_ohlc, idx_warn = fut_index.result()
+            financials, fin_warn = fut_fin.result()
+
+        if idx_warn:
+            warnings.append(idx_warn)
+        if fin_warn:
+            warnings.append(fin_warn)
 
         return {
             "symbol": symbol,
