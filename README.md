@@ -169,21 +169,56 @@ MARKET_INDEX=VNINDEX
 
 ---
 
-### 3. Vận hành Nền tảng
+### 3. Vận Hành Nền Tảng — Khởi Động Toàn Bộ Dự Án Trong 1 Lệnh Duy Nhất 🚀
 
-#### Cách 1 — Chạy Giao diện Trực quan Streamlit (Khuyên dùng)
+Toàn bộ hệ thống (Web Platform, Môi trường ảo, Cổng xác thực, và Trình duyệt) được đóng gói khởi chạy chỉ với **1 lệnh duy nhất**:
+
+```bash
+python run.py
+```
+> **Dành cho Windows:** Bạn cũng có thể nhấp đúp file `run.bat` hoặc chạy `.\run.ps1` trong PowerShell!
+
+Trình khởi chạy sẽ tự động:
+1. Nhận diện và nạp môi trường ảo `.venv`.
+2. Khởi động Web Platform bảo mật với **Cổng Đăng Nhập Hoạt Hình Kéo Dây Đèn (Lamp Login)**.
+3. Tự động bật trình duyệt web tới địa chỉ `http://localhost:8501`.
+
+#### Các tùy chọn nâng cao với 1 lệnh:
+```bash
+python run.py               # Chạy Web Platform (Streamlit + Lamp Login)
+python run.py --with-api    # Chạy đồng thời cả FastAPI Gateway (port 8000) & Web App (port 8501)
+python run.py --desktop     # Chạy ứng dụng Desktop Tkinter độc lập (login_lamp.py)
+python run.py --api-only    # Chỉ khởi chạy RESTful FastAPI Gateway
+python run.py --test        # Chạy tự động toàn bộ 66 ca kiểm thử chất lượng
+```
+
+---
+
+### 💡 Cổng Đăng Nhập Hoạt Hình Kéo Dây Đèn (Lamp Login Animation)
+
+Hệ thống được bảo vệ bởi cổng đăng nhập phong cách thẩm mỹ tối giản sang trọng:
+- **Tương tác kéo dây vật lý**: Nhấp và kéo dây đèn bằng chuột, vuốt chạm cảm ứng hoặc phím Cách (Space) với hiệu ứng nảy lò xo (spring overshoot bounce).
+- **Chuyển màu mượt mà**: Phòng chuyển từ trạng thái tối (`#121417`) sang ánh sáng ấm (`#1c1f24`), chùm sáng rọi xuống bàn làm việc và thẻ đăng nhập viền vàng kim (`#d8b45f`) bừng sáng.
+- **Đăng nhập tiện lợi**: Hỗ trợ tài khoản mẫu (`admin` / `admin`) hoặc nút **"⚡ Đăng nhập nhanh (Khách / Demo)"** chỉ với 1 cú nhấp chuột.
+- **Bản Desktop đi kèm**: File độc lập `login_lamp.py` viết bằng Python Tkinter thuần, không cần cài đặt thêm bất kỳ thư viện nào (`python login_lamp.py`).
+
+---
+
+#### Khởi chạy thủ công từng dịch vụ riêng lẻ:
+
+##### A. Giao diện Web Streamlit
 ```bash
 streamlit run app.py
 ```
 👉 Mở trình duyệt tại: `http://localhost:8501`
 
-#### Cách 2 — Chạy RESTful API Gateway (FastAPI)
+##### B. RESTful API Gateway (FastAPI)
 ```bash
 uvicorn main:app --reload --port 8000
 ```
-👉 Truy cập Swagger UI tương tác tại: `http://localhost:8000/docs`
+👉 Truy cập Swagger UI: `http://localhost:8000/docs` hoặc trang Lamp Login Web tại `http://localhost:8000/login`
 
-#### Cách 3 — Chạy Phân tích Nhanh từ Dòng lệnh (CLI)
+##### C. Chạy Phân tích Nhanh từ Dòng lệnh (CLI)
 ```bash
 # In báo cáo phân tích tổng quan
 python run_analysis.py FPT
@@ -192,7 +227,7 @@ python run_analysis.py FPT
 python run_analysis.py FPT --json
 ```
 
-#### Cách 4 — Chạy Bộ Kiểm Thử Hệ Thống (55 Tests)
+##### D. Chạy Toàn Bộ 66 Ca Kiểm Thử Hệ Thống
 ```bash
 python test_system.py
 ```

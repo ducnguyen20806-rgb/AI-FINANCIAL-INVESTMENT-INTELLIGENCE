@@ -23,6 +23,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 from Module1.data_source import get_data_source
 from Module6.decision_engine import get_engine
@@ -188,6 +189,13 @@ def optimize_portfolio(payload: dict[str, Any]) -> dict[str, Any]:
     if len(returns_dict) < 2:
         raise HTTPException(status_code=400, detail="Cần tối thiểu 2 mã cổ phiếu có đủ dữ liệu để tối ưu danh mục.")
     return RiskEngine.optimize_portfolio(returns_dict)
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login() -> HTMLResponse:
+    """Trang đăng nhập Lamp Login hoạt hình độc lập."""
+    from ui.login import build_lamp_html
+    return HTMLResponse(content=build_lamp_html(initial_on=True))
 
 
 if __name__ == "__main__":

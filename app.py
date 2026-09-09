@@ -38,6 +38,7 @@ from ui.charts import (
     scenario_chart,
     wacc_chart,
 )
+from ui.login import render_login_screen
 from ui.theme import (
     ACTION_COLORS,
     COLORS,
@@ -55,6 +56,14 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 st.markdown(build_css(), unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# Cổng bảo vệ xác thực (Lamp Login Gateway)
+# ---------------------------------------------------------------------------
+if not st.session_state.get("authenticated", False):
+    render_login_screen()
+    st.stop()
+
 
 
 # ---------------------------------------------------------------------------
@@ -181,6 +190,22 @@ def badge(text: str, color: str) -> str:
 # Thanh bên
 # ---------------------------------------------------------------------------
 with st.sidebar:
+    user_name = st.session_state.get("username", "Admin")
+    st.markdown(
+        f'<div style="background:#16191d;border:1px solid #d8b45f44;border-radius:8px;'
+        f'padding:10px 12px;margin-bottom:12px;">'
+        f'<div style="display:flex;align-items:center;justify-content:space-between;">'
+        f'<div><span style="font-size:11px;color:#8d9099;">Tài khoản</span><br>'
+        f'<strong style="color:#d8b45f;font-size:13.5px;">👤 {user_name}</strong></div>'
+        f'<span class="badge" style="background:#00c56622;color:#00c566;border:1px solid #00c56655;font-size:10px;">QUANT PRO</span>'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
+    if st.button("🚪 Đăng xuất", use_container_width=True):
+        st.session_state["authenticated"] = False
+        st.session_state.pop("username", None)
+        st.rerun()
+
     st.markdown(
         f'<div style="font-size:15px;font-weight:800;letter-spacing:-0.02em;'
         f'line-height:1.35;margin-bottom:2px">AI FINANCIAL<br>'

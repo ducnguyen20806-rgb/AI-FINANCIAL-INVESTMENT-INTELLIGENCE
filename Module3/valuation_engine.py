@@ -217,6 +217,7 @@ class ValuationEngine:
         relative_targets = [t for t in (target_by_pe, target_by_pb) if t > 0]
         relative_value = sum(relative_targets) / len(relative_targets) if relative_targets else 0.0
 
+        # Giá trị hợp lý tổng hợp: 60% DCF + 40% bội số ngành
         if intrinsic > 0 and relative_value > 0:
             fair_value = intrinsic * 0.60 + relative_value * 0.40
         elif intrinsic > 0:
