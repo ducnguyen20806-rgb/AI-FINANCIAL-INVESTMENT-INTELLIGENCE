@@ -124,6 +124,9 @@ class SSIDataSource:
                 logger.warning("Token hết hạn (401) — đang refresh...")
                 last_error = "401 Unauthorized"
                 continue
+            if resp.status_code == 404:
+                # 404 nghĩa là endpoint không có trong gói tài khoản — không retry lãng phí thời gian
+                raise SSIDataError(f"Gọi {path} thất bại: HTTP 404 Not Found")
             if resp.status_code != 200:
                 last_error = f"HTTP {resp.status_code}: {resp.text[:200]}"
                 continue

@@ -655,32 +655,37 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
   function redirectToDashboard(user, action) {{
     statusMsg.innerText = '🎉 ' + (action === 'register' ? 'Đăng ký thành công' : 'Đăng nhập thành công') + '! Đang chuyển hướng...';
     
-    // 1. Chuyển hướng qua URL query parameters của trang cha (Streamlit iframe)
+    // 1. Submit form target="_top" trực tiếp lên cửa sổ chính
+    try {{
+      const form = document.getElementById('auth_top_form');
+      if (form) {{
+        document.getElementById('auth_form_user').value = user;
+        document.getElementById('auth_form_action').value = action;
+        form.submit();
+        return;
+      }}
+    }} catch(e) {{
+      console.warn('Form top submit restricted:', e);
+    }}
+
+    // 2. Chuyển hướng qua window.open target _top
+    try {{
+      window.open('/?auth=true&user=' + encodeURIComponent(user) + '&action=' + action, '_top');
+      return;
+    }} catch(e) {{
+      console.warn('Window open _top restricted:', e);
+    }}
+
+    // 3. Fallback URL parent
     try {{
       const target = window.parent || window.top;
-      if (target && target !== window && target.location) {{
-        const url = new URL(target.location.href);
-        url.searchParams.set('auth', 'true');
-        url.searchParams.set('user', user);
-        url.searchParams.set('action', action);
-        target.location.href = url.toString();
+      if (target && target.location) {{
+        target.location.href = '/?auth=true&user=' + encodeURIComponent(user) + '&action=' + action;
         return;
       }}
     }} catch(e) {{
       console.warn('Parent window redirect restricted:', e);
     }}
-
-    // 2. Chuyển hướng nếu mở trang /login độc lập sang cổng Streamlit
-    try {{
-      const host = window.location.hostname || 'localhost';
-      window.location.href = 'http://' + host + ':8501/?auth=true&user=' + encodeURIComponent(user) + '&action=' + action;
-      return;
-    }} catch(e) {{}}
-
-    // 3. Dự phòng qua postMessage
-    try {{
-      window.parent.postMessage({{ type: 'STREAMLIT_AUTH', user: user, action: action }}, '*');
-    }} catch(e) {{}}
   }}
 
   function handleLogin() {{
@@ -708,6 +713,11 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     redirectToDashboard('Guest_Trader', 'demo');
   }}
 </script>
+<form id="auth_top_form" action="/" method="GET" target="_top" style="display:none;">
+  <input type="hidden" name="auth" value="true">
+  <input type="hidden" name="user" id="auth_form_user" value="Admin">
+  <input type="hidden" name="action" id="auth_form_action" value="login">
+</form>
 </body>
 </html>
 """
@@ -723,13 +733,12 @@ def render_login_screen() -> None:
         st.session_state["authenticated"] = True
         st.session_state["username"] = user
         st.session_state["action"] = action
-        st.query_params.clear()
         st.rerun()
 
     # 2. Render Interactive Lamp Animation Canvas
     components.html(build_lamp_html(initial_on=True, default_user="Admin"), height=610)
 
-    # 3. Native Streamlit Action Box (Hỗ trợ 100% người dùng trên mọi trình duyệt)
+    # 3. Native Streamlit Action Box (Đăng nhập / Đăng ký / Vào nhanh)
     st.markdown(
         f'<div style="text-align:center;margin-top:5px;margin-bottom:15px;'
         f'padding:10px 14px;background:{CARD_ON};border:1px solid rgba(216,180,95,0.3);'
@@ -755,7 +764,8 @@ def render_login_screen() -> None:
                     user_final = u_in.strip() or "Admin"
                     st.session_state["authenticated"] = True
                     st.session_state["username"] = user_final
-                    st.success(f"🎉 Đăng nhập thành công! Chào mừng **{user_final}** đến với Dashboard.")
+                    st.query_params["auth"] = "true"
+                    st.query_params["user"] = user_final
                     st.rerun()
 
         with tab_reg:
@@ -774,7 +784,8 @@ def render_login_screen() -> None:
                         st.session_state["authenticated"] = True
                         st.session_state["username"] = reg_user
                         st.session_state["is_new_user"] = True
-                        st.success(f"🎉 Đăng ký thành công! Đang đưa **{reg_user}** vào Dashboard chính...")
+                        st.query_params["auth"] = "true"
+                        st.query_params["user"] = reg_user
                         st.rerun()
 
         with tab_quick:
@@ -786,4 +797,6 @@ def render_login_screen() -> None:
             if st.button("⚡ Vào ngay với quyền Khách (Guest)", use_container_width=True):
                 st.session_state["authenticated"] = True
                 st.session_state["username"] = "Guest_Trader"
+                st.query_params["auth"] = "true"
+                st.query_params["user"] = "Guest_Trader"
                 st.rerun()

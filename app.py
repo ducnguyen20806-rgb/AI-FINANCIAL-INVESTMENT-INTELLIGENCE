@@ -51,6 +51,13 @@ st.markdown(build_css(), unsafe_allow_html=True)
 # ---------------------------------------------------------------------------
 # Cổng bảo vệ xác thực (Lamp Login & Register Gateway)
 # ---------------------------------------------------------------------------
+if st.query_params.get("auth") == "true":
+    st.session_state["authenticated"] = True
+    if "username" not in st.session_state or not st.session_state["username"]:
+        st.session_state["username"] = st.query_params.get("user", "Admin")
+
+# Nếu chưa đăng nhập: chỉ hiển thị cổng Lamp Login rồi dừng lại
+# Khi đã đăng nhập: loại bỏ 100% phần đăng nhập, chỉ hiển thị Dashboard chính
 if not st.session_state.get("authenticated", False):
     render_login_screen()
     st.stop()
@@ -166,6 +173,7 @@ def render_top_navbar(symbol: str, source_label: str, user_name: str) -> None:
         if st.button("🚪 Thoát", use_container_width=True, help="Đăng xuất khỏi hệ thống"):
             st.session_state["authenticated"] = False
             st.session_state.pop("username", None)
+            st.query_params.clear()
             st.rerun()
 
 

@@ -200,13 +200,13 @@ class LampLogin:
             520, 130, 840, 440, fill=CARD_OFF, outline="#232629", width=1
         )
         self.title = c.create_text(
-            680, 175, text="Welcome", fill=INK, font=("Segoe UI", 18, "bold")
+            680, 175, text="Đăng Nhập Hệ Thống", fill=INK, font=("Segoe UI", 16, "bold")
         )
         self.lbl_user = c.create_text(
-            552, 218, text="Username", anchor="w", fill=MUTED, font=("Segoe UI", 9)
+            552, 218, text="Tên đăng nhập", anchor="w", fill=MUTED, font=("Segoe UI", 9)
         )
         self.lbl_pass = c.create_text(
-            552, 300, text="Password", anchor="w", fill=MUTED, font=("Segoe UI", 9)
+            552, 300, text="Mật khẩu", anchor="w", fill=MUTED, font=("Segoe UI", 9)
         )
 
         self.e_user = tk.Entry(
@@ -220,6 +220,8 @@ class LampLogin:
             highlightbackground="#2b2f35",
             highlightcolor=GOLD,
         )
+        self.e_user.insert(0, "Admin")
+
         self.e_pass = tk.Entry(
             self.root,
             show="•",
@@ -232,12 +234,17 @@ class LampLogin:
             highlightbackground="#2b2f35",
             highlightcolor=GOLD,
         )
+        self.e_pass.insert(0, "admin")
 
         self.btn = tk.Button(
-            self.root, text="Sign In", command=self.sign_in,
+            self.root, text="Đăng nhập & Mở Dashboard", command=self.sign_in,
             bg=GOLD, fg="#2a2110", activebackground="#e6c877",
             relief="flat", font=("Segoe UI", 11, "bold"), cursor="hand2",
         )
+
+        # Hỗ trợ phím Enter để đăng nhập nhanh
+        self.e_user.bind("<Return>", lambda _e: self.sign_in())
+        self.e_pass.bind("<Return>", lambda _e: self.sign_in())
 
         self.w_user = c.create_window(680, 245, window=self.e_user, width=270, height=34)
         self.w_pass = c.create_window(680, 327, window=self.e_pass, width=270, height=34)
@@ -295,9 +302,11 @@ class LampLogin:
     def sign_in(self):
         user = self.e_user.get().strip()
         if not user:
-            self.canvas.itemconfigure(self.status, text="Nhap username truoc da.")
+            self.canvas.itemconfigure(self.status, text="Vui lòng nhập tên tài khoản.")
             return
-        self.canvas.itemconfigure(self.status, text=f"Xin chao, {user}!")
+        self.canvas.itemconfigure(self.status, text=f"Xin chào, {user}! Đang mở Dashboard...")
+        import webbrowser
+        self.root.after(700, lambda: webbrowser.open(f"http://localhost:8501/?auth=true&user={user}"))
 
 
 if __name__ == "__main__":
