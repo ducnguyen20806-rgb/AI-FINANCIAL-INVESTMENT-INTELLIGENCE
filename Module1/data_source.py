@@ -684,7 +684,8 @@ class UserAPIDataSource:
         return self._delegate("get_index_ohlc", index_code)
 
     def get_all_stock_data(self, symbol: str):
-        return self._delegate("get_all_stock_data", symbol)
+        from Module1.cache_manager import get_cached_or_fetch
+        return get_cached_or_fetch(symbol, lambda s: self._delegate("get_all_stock_data", s))
 
 
 _default_source: UserAPIDataSource | None = None

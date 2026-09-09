@@ -414,6 +414,162 @@ h1, h2, h3, h4 {{
   font-family: 'JetBrains Mono', monospace;
 }}
 
+/* ---------- THANH BĂNG CHUYỀN THỊ TRƯỜNG (MARKET TICKER TAPE) ---------- */
+.market-ticker-tape {{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 6px 14px;
+  margin: 6px 0 14px 0;
+  overflow-x: auto;
+  white-space: nowrap;
+}}
+.market-ticker-tape::-webkit-scrollbar {{
+  height: 3px;
+}}
+.market-ticker-tape::-webkit-scrollbar-thumb {{
+  background: rgba(216, 180, 95, 0.3);
+  border-radius: 3px;
+}}
+.ticker-tape-item {{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  padding-right: 14px;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}}
+.ticker-tape-name {{
+  font-weight: 700;
+  color: #94A3B8;
+  font-size: 11px;
+}}
+.ticker-tape-val {{
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: #F8FAFC;
+}}
+.ticker-tape-chg {{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+}}
+
+/* ---------- THANH CHỌN NHANH SIÊU CỔ PHIẾU (QUICK WATCHLIST) ---------- */
+.quick-watchlist-wrap {{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}}
+.quick-watchlist-title {{
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: {c['gold']};
+  margin-right: 4px;
+}}
+
+/* ---------- THẺ TRỢ LÝ AI ĐỊNH LƯỢNG (AI COPILOT BRIEF) ---------- */
+.ai-copilot-card {{
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.90) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(216, 180, 95, 0.35);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}}
+.ai-copilot-badge {{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(216, 180, 95, 0.15);
+  color: {c['gold']};
+  border: 1px solid rgba(216, 180, 95, 0.3);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}}
+
+/* ---------- PHÂN RÃ DUPONT 5 NHÂN TỐ (DUPONT FACTOR BOX) ---------- */
+.dupont-grid {{
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin: 14px 0;
+}}
+.dupont-card {{
+  background: rgba(30, 41, 59, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: center;
+}}
+.dupont-num {{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 17px;
+  font-weight: 700;
+  color: {c['gold']};
+  margin: 4px 0;
+}}
+.dupont-lbl {{
+  font-size: 10.5px;
+  color: {c['muted']};
+}}
+
+/* ---------- KẾ HOẠCH GIẢI NGÂN 3 ĐỢT (3-TRANCHE TRADE EXECUTION) ---------- */
+.tranche-grid {{
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 14px 0;
+}}
+.tranche-card {{
+  background: rgba(30, 41, 59, 0.70);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}}
+.tranche-step {{
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: {c['accent']};
+  margin-bottom: 4px;
+}}
+.tranche-title {{
+  font-size: 14px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin-bottom: 8px;
+}}
+.tranche-price {{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 800;
+  color: {c['gold']};
+}}
+.tranche-desc {{
+  font-size: 11.5px;
+  color: {c['muted']};
+  margin-top: 6px;
+  line-height: 1.4;
+}}
+
 /* Footnote */
 .footnote {{
   font-size: 11px;

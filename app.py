@@ -29,6 +29,15 @@ from ui.charts import (
     scenario_chart,
     wacc_chart,
 )
+from ui.institutional_tools import (
+    generate_investment_memo,
+    render_3_tranche_plan,
+    render_ai_copilot_brief,
+    render_dcf_sandbox,
+    render_dupont_5_factor,
+    render_market_ticker_tape,
+    render_quick_watchlist,
+)
 from ui.login import render_login_screen
 from ui.theme import (
     ACTION_COLORS,
@@ -466,6 +475,7 @@ except Exception as exc:  # noqa: BLE001
 
 quote = data.get("quote", {})
 fundamentals = data.get("fundamentals", {})
+financials = data.get("financials", {})
 valuation = data.get("valuation", {})
 technical = data.get("technical", {})
 risk = data.get("risk", {})
@@ -476,6 +486,12 @@ journal = data.get("thesis_journal", {})
 elapsed_ms = int(data.get("elapsed_ms", 0))
 data_source = str(data.get("data_source", "SSI"))
 
+# 1. Băng chuyền thị trường thời gian thực (Market Ticker Tape)
+render_market_ticker_tape()
+
+# 2. Thanh chọn nhanh siêu cổ phiếu 1-click (Quick Watchlist Chips)
+render_quick_watchlist(symbol)
+
 # Render Company Header with large display font
 render_company_header(symbol, quote, elapsed_ms, data_source)
 
@@ -484,6 +500,9 @@ render_ticker_strip(quote)
 
 # Render Quantitative Scorecards
 render_scorecards(score, rec, valuation, risk)
+
+# 3. Tóm tắt điều hành định lượng tự động bằng AI (AI Executive Briefing)
+render_ai_copilot_brief(symbol, data)
 
 st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
@@ -519,6 +538,21 @@ if selected_view == "📊 Tổng quan":
     rr3.metric("Tỷ lệ Lợi nhuận / Rủi ro", f"{safe_float(rec.get('risk_reward_ratio')):.2f}x")
     rr4.metric("Tỷ trọng đề xuất", f"{safe_float(rec.get('position_size_pct')):.2f}% NAV")
 
+    st.markdown("---")
+    # Kế hoạch giải ngân 3 đợt chuẩn quỹ
+    render_3_tranche_plan(rec, quote, technical)
+
+    st.markdown("---")
+    # Xuất bản ghi nhớ đầu tư
+    memo_text = generate_investment_memo(symbol, data)
+    st.download_button(
+        label="📄 Tải Bản Ghi Nhớ Đầu Tư (Institutional Investment Memo)",
+        data=memo_text,
+        file_name=f"Investment_Memo_{symbol}_{datetime.datetime.now().strftime('%Y%m%d')}.md",
+        mime="text/markdown",
+        use_container_width=True,
+    )
+
 # ============================ 2. 12 CHỈ SỐ VÀNG ==========================
 elif selected_view == "📑 12 Chỉ số Vàng":
     st.markdown("### 📑 12 Chỉ Số Phân Tích Tài Chính Cốt Lõi")
@@ -545,6 +579,10 @@ elif selected_view == "🏢 Cơ bản & F-Score":
     b.metric("LNST TTM", fmt_vnd(f.get("net_income_ttm")))
     c.metric("Dòng tiền tự do (FCF)", fmt_vnd(f.get("free_cash_flow")))
     d.metric("Tăng trưởng DT (CAGR)", f"{pct(f.get('revenue_cagr')):.2f}%")
+
+    st.markdown("---")
+    # Phân rã Dupont 5 nhân tố chuyên sâu
+    render_dupont_5_factor(fundamentals)
 
     st.markdown("---")
     st.markdown("**Diễn biến kết quả kinh doanh theo quý**")
@@ -620,6 +658,15 @@ elif selected_view == "💎 Định giá DCF":
     sens = v.get("sensitivity", {})
     if sens:
         st.plotly_chart(dcf_sensitivity_heatmap(sens, safe_float(v.get("price"))), use_container_width=True)
+
+    st.markdown("---")
+    # Bộ giả lập định giá DCF thời gian thực
+    render_dcf_sandbox(
+        fundamentals,
+        quote,
+        financials,
+        safe_float(data.get("risk", {}).get("market", {}).get("beta"), 1.0),
+    )
 
     st.markdown("---")
     st.markdown("**Định giá tương đối (Bội số ngành)**")

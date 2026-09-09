@@ -320,6 +320,19 @@ def test_robustness() -> None:
     check("multi_ticker_radar_chart nhận dict rỗng không lỗi", fig_radar is not None)
 
 
+def test_cache_and_tools(data: dict) -> None:
+    print("\nBộ nhớ đệm & Công cụ Định lượng Cao cấp")
+    from Module1.cache_manager import get_cached_or_fetch, load_from_cache, save_to_cache
+    from ui.institutional_tools import generate_investment_memo
+
+    save_to_cache("TEST_SYM", {"symbol": "TEST_SYM", "val": 123})
+    loaded = load_from_cache("TEST_SYM")
+    check("Ghi và đọc cache thành công", loaded is not None and loaded.get("val") == 123)
+
+    memo = generate_investment_memo("FPT", data)
+    check("Xuất bản ghi nhớ đầu tư (Investment Memo) đầy đủ nội dung", "BÁO CÁO PHÂN TÍCH ĐỊNH LƯỢNG" in memo and "FPT" in memo)
+
+
 def main() -> int:
     print("=" * 60)
     print(" KIỂM THỬ HỆ THỐNG — AI FINANCIAL INTELLIGENCE PLATFORM")
@@ -332,6 +345,7 @@ def main() -> int:
     test_module5()
     test_module6()
     test_robustness()
+    test_cache_and_tools(data)
 
     print("\n" + "=" * 60)
     print(f" KẾT QUẢ: {PASSED} đạt / {FAILED} lỗi")
