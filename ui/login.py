@@ -680,11 +680,47 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
 
   // --- XỬ LÝ CHUYỂN HƯỚNG VÀO DASHBOARD CHÍNH ---
   function redirectToDashboard(user, action) {{
-    statusMsg.innerText = '🎉 ' + (action === 'register' ? 'Đăng ký thành công' : 'Đăng nhập thành công') + '! Đang chuyển hướng...';
-    
     const query = '?auth=true&user=' + encodeURIComponent(user) + '&action=' + encodeURIComponent(action);
+    statusMsg.innerHTML = '<div style="color:#d8b45f;font-weight:700;font-size:13px;">🎉 ' + (action === 'register' ? 'Đăng ký thành công' : 'Đăng nhập thành công') + '! Đang chuyển hướng...</div>' +
+      '<div style="margin-top:6px;font-size:11px;color:#8d9099;">Nếu hệ thống chưa tự mở, <a href="' + query + '" target="_top" style="color:#f3e6cd;text-decoration:underline;font-weight:700;">👉 Bấm vào đây để vào Dashboard</a></div>';
 
-    // 1. Chuyển hướng trực tiếp tức thì qua window.top.location.replace
+    // 1. Gọi trực tiếp hàm window.parent.__doLampLogin nếu cùng origin
+    try {{
+      if (window.parent && typeof window.parent.__doLampLogin === 'function') {{
+        window.parent.__doLampLogin(user, action);
+        return;
+      }}
+    }} catch(e) {{
+      console.warn('parent function call restricted:', e);
+    }}
+
+    // 2. Gửi postMessage lên window.parent (chuẩn W3C liên frame, vượt qua mọi hạn chế iframe sandbox)
+    try {{
+      if (window.parent) {{
+        window.parent.postMessage({{
+          type: 'LAMP_AUTH_SUCCESS',
+          user: user,
+          action: action
+        }}, '*');
+      }}
+    }} catch(e) {{
+      console.warn('postMessage parent restricted:', e);
+    }}
+
+    // 3. Gửi postMessage lên window.top
+    try {{
+      if (window.top && window.top !== window.parent) {{
+        window.top.postMessage({{
+          type: 'LAMP_AUTH_SUCCESS',
+          user: user,
+          action: action
+        }}, '*');
+      }}
+    }} catch(e) {{
+      console.warn('postMessage top restricted:', e);
+    }}
+
+    // 4. Fallback window.top.location.replace nếu trình duyệt cho phép
     try {{
       if (window.top && window.top.location) {{
         const target = window.top.location.origin + window.top.location.pathname + query;
@@ -695,35 +731,16 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
       console.warn('top.location restricted:', e);
     }}
 
-    // 2. Chuyển hướng qua window.parent
-    try {{
-      if (window.parent && window.parent.location) {{
-        const target = window.parent.location.origin + window.parent.location.pathname + query;
-        window.parent.location.replace(target);
-        return;
-      }}
-    }} catch(e) {{
-      console.warn('parent.location restricted:', e);
-    }}
-
-    // 3. Submit form target="_top"
+    // 5. Fallback submit form target="_top"
     try {{
       const form = document.getElementById('auth_top_form');
       if (form) {{
         document.getElementById('auth_form_user').value = user;
         document.getElementById('auth_form_action').value = action;
         form.submit();
-        return;
       }}
     }} catch(e) {{
       console.warn('Form top submit restricted:', e);
-    }}
-
-    // 4. Fallback window.open target _top
-    try {{
-      window.open(query, '_top');
-    }} catch(e) {{
-      console.warn('window.open _top restricted:', e);
     }}
   }}
 
@@ -751,6 +768,14 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
   function handleDemoLogin() {{
     triggerLampLogin('Guest_Trader', 'demo');
   }}
+
+  // Bấm Enter tại các ô nhập liệu -> Tự động đăng nhập
+  document.getElementById('login_user').addEventListener('keydown', (e) => {{
+    if (e.key === 'Enter') handleLogin();
+  }});
+  document.getElementById('login_pass').addEventListener('keydown', (e) => {{
+    if (e.key === 'Enter') handleLogin();
+  }});
 </script>
 <form id="auth_top_form" action="" method="GET" target="_top" style="display:none;">
   <input type="hidden" name="auth" value="true">
@@ -768,5 +793,33 @@ def render_login_screen() -> None:
     Đã loại bỏ hoàn toàn các form bên dưới cùng theo yêu cầu.
     Nâng cấp: Đăng nhập bằng cách kéo đèn sáng bừng lên!
     """
-    # Cổng đăng nhập duy nhất: Interactive Lamp Animation Canvas (mặc định bắt đầu từ đèn tắt để kéo đèn sáng)
+    # 1. Bắt tín hiệu postMessage từ iframe trên Top Window để điều hướng ngay lập tức
+    st.html(
+        """
+        <script>
+        (function() {
+            if (window.__lamp_listener_attached) return;
+            window.__lamp_listener_attached = true;
+            
+            function handleAuth(user, action) {
+                const target = window.location.origin + window.location.pathname + 
+                               "?auth=true&user=" + encodeURIComponent(user || "Admin") + 
+                               "&action=" + encodeURIComponent(action || "login");
+                window.location.replace(target);
+            }
+
+            window.__doLampLogin = handleAuth;
+
+            window.addEventListener("message", function(event) {
+                if (event && event.data && event.data.type === "LAMP_AUTH_SUCCESS") {
+                    handleAuth(event.data.user, event.data.action);
+                }
+            });
+        })();
+        </script>
+        """,
+        unsafe_allow_javascript=True,
+    )
+
+    # 2. Cổng đăng nhập duy nhất: Interactive Lamp Animation Canvas (mặc định bắt đầu từ đèn tắt để kéo đèn sáng)
     components.html(build_lamp_html(initial_on=False, default_user="Admin"), height=650)
