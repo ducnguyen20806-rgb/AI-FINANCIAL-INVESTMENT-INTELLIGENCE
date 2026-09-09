@@ -655,7 +655,29 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
   function redirectToDashboard(user, action) {{
     statusMsg.innerText = '🎉 ' + (action === 'register' ? 'Đăng ký thành công' : 'Đăng nhập thành công') + '! Đang chuyển hướng...';
     
-    // 1. Submit form target="_top" trực tiếp lên cửa sổ chính
+    const query = '?auth=true&user=' + encodeURIComponent(user) + '&action=' + encodeURIComponent(action);
+
+    // 1. Chuyển hướng trực tiếp window.top
+    try {{
+      if (window.top && window.top.location) {{
+        window.top.location.href = query;
+        return;
+      }}
+    }} catch(e) {{
+      console.warn('top.location restricted:', e);
+    }}
+
+    // 2. Chuyển hướng qua window.parent
+    try {{
+      if (window.parent && window.parent.location) {{
+        window.parent.location.href = query;
+        return;
+      }}
+    }} catch(e) {{
+      console.warn('parent.location restricted:', e);
+    }}
+
+    // 3. Submit form target="_top"
     try {{
       const form = document.getElementById('auth_top_form');
       if (form) {{
@@ -668,23 +690,11 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
       console.warn('Form top submit restricted:', e);
     }}
 
-    // 2. Chuyển hướng qua window.open target _top
+    // 4. Fallback window.open target _top
     try {{
-      window.open('/?auth=true&user=' + encodeURIComponent(user) + '&action=' + action, '_top');
-      return;
+      window.open(query, '_top');
     }} catch(e) {{
-      console.warn('Window open _top restricted:', e);
-    }}
-
-    // 3. Fallback URL parent
-    try {{
-      const target = window.parent || window.top;
-      if (target && target.location) {{
-        target.location.href = '/?auth=true&user=' + encodeURIComponent(user) + '&action=' + action;
-        return;
-      }}
-    }} catch(e) {{
-      console.warn('Parent window redirect restricted:', e);
+      console.warn('window.open _top restricted:', e);
     }}
   }}
 
@@ -713,7 +723,7 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     redirectToDashboard('Guest_Trader', 'demo');
   }}
 </script>
-<form id="auth_top_form" action="/" method="GET" target="_top" style="display:none;">
+<form id="auth_top_form" action="" method="GET" target="_top" style="display:none;">
   <input type="hidden" name="auth" value="true">
   <input type="hidden" name="user" id="auth_form_user" value="Admin">
   <input type="hidden" name="action" id="auth_form_action" value="login">
@@ -724,7 +734,10 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
 
 
 def render_login_screen() -> None:
-    """Hiển thị màn hình Lamp Login và Đăng ký trước khi vào Dashboard chính."""
+    """
+    Cổng đăng nhập duy nhất bằng hoạt hình kéo dây đèn (Lamp Login & Register).
+    Đã loại bỏ hoàn toàn các form bên dưới cùng theo yêu cầu.
+    """
     # 1. Kiểm tra query parameters từ redirect
     query_auth = st.query_params.get("auth")
     if query_auth == "true":
@@ -735,68 +748,5 @@ def render_login_screen() -> None:
         st.session_state["action"] = action
         st.rerun()
 
-    # 2. Render Interactive Lamp Animation Canvas
-    components.html(build_lamp_html(initial_on=True, default_user="Admin"), height=610)
-
-    # 3. Native Streamlit Action Box (Đăng nhập / Đăng ký / Vào nhanh)
-    st.markdown(
-        f'<div style="text-align:center;margin-top:5px;margin-bottom:15px;'
-        f'padding:10px 14px;background:{CARD_ON};border:1px solid rgba(216,180,95,0.3);'
-        f'border-radius:10px;max-width:620px;margin-left:auto;margin-right:auto;">'
-        f'<div style="font-size:13px;color:{GOLD};font-weight:700;margin-bottom:4px;">'
-        f'⚡ CỔNG ĐĂNG NHẬP & ĐĂNG KÝ HỆ THỐNG ĐỊNH LƯỢNG</div>'
-        f'<div style="font-size:11.5px;color:{MUTED};">'
-        f'Thao tác trên khung hoạt hình kéo dây ở trên hoặc xác nhận nhanh ngay dưới đây:</div>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-
-    _, col_form, _ = st.columns([1, 2.2, 1])
-    with col_form:
-        tab_login, tab_reg, tab_quick = st.tabs(["🔑 Đăng nhập", "📝 Đăng ký tài khoản", "⚡ Vào nhanh"])
-
-        with tab_login:
-            with st.form("form_native_login"):
-                u_in = st.text_input("Tên đăng nhập", value="Admin", key="login_u")
-                p_in = st.text_input("Mật khẩu", value="admin", type="password", key="login_p")
-                btn_log = st.form_submit_button("✨ Đăng nhập & Vào Dashboard", use_container_width=True, type="primary")
-                if btn_log:
-                    user_final = u_in.strip() or "Admin"
-                    st.session_state["authenticated"] = True
-                    st.session_state["username"] = user_final
-                    st.query_params["auth"] = "true"
-                    st.query_params["user"] = user_final
-                    st.rerun()
-
-        with tab_reg:
-            with st.form("form_native_reg"):
-                u_new = st.text_input("Tên tài khoản mới", placeholder="Nhập tên tài khoản của bạn...", key="reg_u")
-                p_new1 = st.text_input("Mật khẩu mới", type="password", placeholder="Tối thiểu 4 ký tự...", key="reg_p1")
-                p_new2 = st.text_input("Xác nhận mật khẩu", type="password", placeholder="Nhập lại mật khẩu...", key="reg_p2")
-                btn_reg = st.form_submit_button("📝 Tạo tài khoản & Vào Dashboard", use_container_width=True, type="primary")
-                if btn_reg:
-                    if not u_new.strip():
-                        st.error("Vui lòng nhập tên tài khoản.")
-                    elif p_new1 and p_new2 and p_new1 != p_new2:
-                        st.error("Mật khẩu xác nhận không khớp!")
-                    else:
-                        reg_user = u_new.strip()
-                        st.session_state["authenticated"] = True
-                        st.session_state["username"] = reg_user
-                        st.session_state["is_new_user"] = True
-                        st.query_params["auth"] = "true"
-                        st.query_params["user"] = reg_user
-                        st.rerun()
-
-        with tab_quick:
-            st.markdown(
-                f'<div style="font-size:12px;color:{MUTED};margin-bottom:10px;">'
-                f'Khám phá toàn bộ tính năng phân tích định lượng ngay lập tức mà không cần mật khẩu.</div>',
-                unsafe_allow_html=True,
-            )
-            if st.button("⚡ Vào ngay với quyền Khách (Guest)", use_container_width=True):
-                st.session_state["authenticated"] = True
-                st.session_state["username"] = "Guest_Trader"
-                st.query_params["auth"] = "true"
-                st.query_params["user"] = "Guest_Trader"
-                st.rerun()
+    # 2. Cổng đăng nhập duy nhất: Interactive Lamp Animation Canvas
+    components.html(build_lamp_html(initial_on=True, default_user="Admin"), height=650)
