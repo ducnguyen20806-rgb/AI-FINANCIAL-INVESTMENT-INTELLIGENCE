@@ -684,10 +684,11 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     
     const query = '?auth=true&user=' + encodeURIComponent(user) + '&action=' + encodeURIComponent(action);
 
-    // 1. Chuyển hướng trực tiếp window.top
+    // 1. Chuyển hướng trực tiếp tức thì qua window.top.location.replace
     try {{
       if (window.top && window.top.location) {{
-        window.top.location.href = query;
+        const target = window.top.location.origin + window.top.location.pathname + query;
+        window.top.location.replace(target);
         return;
       }}
     }} catch(e) {{
@@ -697,7 +698,8 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     // 2. Chuyển hướng qua window.parent
     try {{
       if (window.parent && window.parent.location) {{
-        window.parent.location.href = query;
+        const target = window.parent.location.origin + window.parent.location.pathname + query;
+        window.parent.location.replace(target);
         return;
       }}
     }} catch(e) {{
@@ -766,15 +768,5 @@ def render_login_screen() -> None:
     Đã loại bỏ hoàn toàn các form bên dưới cùng theo yêu cầu.
     Nâng cấp: Đăng nhập bằng cách kéo đèn sáng bừng lên!
     """
-    # 1. Kiểm tra query parameters từ redirect
-    query_auth = st.query_params.get("auth")
-    if query_auth == "true":
-        user = st.query_params.get("user", "Admin")
-        action = st.query_params.get("action", "login")
-        st.session_state["authenticated"] = True
-        st.session_state["username"] = user
-        st.session_state["action"] = action
-        st.rerun()
-
-    # 2. Cổng đăng nhập duy nhất: Interactive Lamp Animation Canvas (mặc định bắt đầu từ đèn tắt để kéo đèn sáng)
+    # Cổng đăng nhập duy nhất: Interactive Lamp Animation Canvas (mặc định bắt đầu từ đèn tắt để kéo đèn sáng)
     components.html(build_lamp_html(initial_on=False, default_user="Admin"), height=650)

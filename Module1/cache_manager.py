@@ -92,8 +92,8 @@ def load_from_cache(symbol: str, max_age: float | None = None) -> dict[str, Any]
 def get_cached_or_fetch(
     symbol: str,
     fetch_func: Callable[[str], dict[str, Any]],
-    max_age_seconds: float = 300.0,
-    background_refresh: bool = True,
+    max_age_seconds: float = 86400.0,
+    background_refresh: bool = False,
 ) -> dict[str, Any]:
     """
     Mô hình Stale-While-Revalidate:
