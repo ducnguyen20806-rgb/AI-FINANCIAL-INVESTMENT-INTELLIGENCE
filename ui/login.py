@@ -1,12 +1,16 @@
 """
 ui/login.py
-CỔNG ĐĂNG NHẬP LAMP LOGIN ANIMATION — AI Financial Platform
+CỔNG ĐĂNG NHẬP & ĐĂNG KÝ LAMP LOGIN ANIMATION — AI Financial Platform
 
 Tái hiện chuyển động kéo dây đèn (Lamp Login Animation):
 - Kéo dây đèn xuống (hoặc click / phím cách) -> đèn bật sáng.
 - Phòng đổi màu mượt từ ROOM_OFF (#121417) sang ROOM_ON (#1c1f24).
-- Chùm sáng rọi xuống bàn làm việc và thẻ đăng nhập viền vàng kim (#d8b45f) hiện ra.
-- Hỗ trợ nhập tài khoản hoặc Đăng nhập nhanh 1-click (Demo / Khách).
+- Chùm sáng rọi xuống bàn làm việc và thẻ đăng nhập/đăng ký viền vàng kim (#d8b45f) hiện ra.
+- Hỗ trợ đầy đủ:
+    1. Đăng nhập (Sign In)
+    2. Đăng ký tài khoản mới (Sign Up)
+    3. Đăng nhập nhanh 1-click (Guest / Demo)
+- Khi user đăng nhập hoặc đăng ký xong, hệ thống tự động lưu phiên và chuyển hướng ngay vào Dashboard chính.
 """
 from __future__ import annotations
 
@@ -28,15 +32,15 @@ INK = "#f4f1ec"
 MUTED = "#8d9099"
 
 
-def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> str:
-    """Tạo mã HTML/SVG/CSS/JS hoạt hình tương tác kéo dây đèn hoàn chỉnh."""
+def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str:
+    """Tạo mã HTML/SVG/CSS/JS hoạt hình tương tác kéo dây đèn và form Đăng nhập/Đăng ký."""
     is_on_str = "true" if initial_on else "false"
     return f"""<!DOCTYPE html>
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lamp Login</title>
+<title>Lamp Login & Register — AI Financial Platform</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -57,7 +61,7 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    overflow-x: hidden;
     transition: background-color 0.6s cubic-bezier(0.25, 1, 0.5, 1);
   }}
 
@@ -67,19 +71,19 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
 
   .scene-container {{
     position: relative;
-    width: 920px;
-    height: 560px;
+    width: 940px;
+    height: 590px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 40px;
+    padding: 10px 30px;
   }}
 
   /* --- CỘT ĐÈN (SVG LAMP) --- */
   .lamp-area {{
     position: relative;
     width: 440px;
-    height: 500px;
+    height: 540px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -153,11 +157,11 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
   /* Chú thích kéo dây */
   .pull-tooltip {{
     position: absolute;
-    bottom: 28px;
+    bottom: 20px;
     left: 48%;
     transform: translateX(-50%);
-    background: rgba(18, 20, 23, 0.85);
-    border: 1px solid rgba(216, 180, 95, 0.3);
+    background: rgba(18, 20, 23, 0.88);
+    border: 1px solid rgba(216, 180, 95, 0.35);
     color: {GOLD};
     font-size: 11.5px;
     padding: 6px 14px;
@@ -171,13 +175,13 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
     animation: pulseHint 2.4s infinite ease-in-out;
   }}
   @keyframes pulseHint {{
-    0%, 100% {{ opacity: 0.7; transform: translateX(-50%) translateY(0); }}
+    0%, 100% {{ opacity: 0.75; transform: translateX(-50%) translateY(0); }}
     50% {{ opacity: 1; transform: translateX(-50%) translateY(-3px); }}
   }}
 
-  /* --- THẺ ĐĂNG NHẬP (LOGIN CARD) --- */
+  /* --- THẺ ĐĂNG NHẬP / ĐĂNG KÝ (AUTH CARD) --- */
   .card-area {{
-    width: 380px;
+    width: 410px;
     position: relative;
     z-index: 10;
   }}
@@ -186,7 +190,7 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
     background: {CARD_OFF};
     border: 1px solid #232629;
     border-radius: 14px;
-    padding: 34px 30px;
+    padding: 26px 26px;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
     opacity: 0.12;
     transform: scale(0.98);
@@ -207,6 +211,13 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(216, 180, 95, 0.18);
   }}
 
+  .card-header-bar {{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }}
+
   .brand-badge {{
     display: inline-flex;
     align-items: center;
@@ -214,54 +225,69 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
     background: rgba(216, 180, 95, 0.12);
     border: 1px solid rgba(216, 180, 95, 0.35);
     color: {GOLD};
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 700;
-    padding: 4px 10px;
+    padding: 3px 8px;
     border-radius: 6px;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    margin-bottom: 14px;
   }}
 
-  .card-title {{
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: {INK};
-    margin-bottom: 4px;
+  /* Chuyển đổi Tab Đăng nhập / Đăng ký */
+  .auth-nav {{
+    display: flex;
+    background: #191c20;
+    border: 1px solid #282c32;
+    border-radius: 8px;
+    padding: 3px;
+    margin-bottom: 16px;
   }}
 
-  .card-subtitle {{
+  .nav-btn {{
+    flex: 1;
+    text-align: center;
+    padding: 6px 0;
     font-size: 12px;
+    font-weight: 600;
     color: {MUTED};
-    margin-bottom: 22px;
-    line-height: 1.4;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }}
+
+  .nav-btn.active {{
+    background: {GOLD};
+    color: #2a2110;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(216, 180, 95, 0.3);
   }}
 
   .form-group {{
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     text-align: left;
   }}
 
   .form-label {{
     display: block;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 600;
     color: {MUTED};
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     letter-spacing: 0.02em;
   }}
 
   .form-input {{
     width: 100%;
-    height: 40px;
+    height: 38px;
     background: #1e2126;
     border: 1px solid #2b2f35;
     border-radius: 8px;
-    padding: 0 14px;
+    padding: 0 12px;
     color: {INK};
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 13px;
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
   }}
@@ -272,16 +298,16 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
 
   .btn-submit {{
     width: 100%;
-    height: 44px;
+    height: 40px;
     background: {GOLD};
     color: #2a2110;
     border: none;
     border-radius: 8px;
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 700;
     cursor: pointer;
-    margin-top: 8px;
+    margin-top: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -298,16 +324,16 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
 
   .btn-demo {{
     width: 100%;
-    height: 38px;
+    height: 34px;
     background: transparent;
     color: {MUTED};
     border: 1px solid #33373e;
     border-radius: 8px;
     font-family: inherit;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
     cursor: pointer;
-    margin-top: 10px;
+    margin-top: 8px;
     transition: all 0.2s;
   }}
   .btn-demo:hover {{
@@ -317,8 +343,8 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
   }}
 
   .status-msg {{
-    margin-top: 14px;
-    font-size: 12px;
+    margin-top: 10px;
+    font-size: 11.5px;
     text-align: center;
     color: {GOLD};
     min-height: 18px;
@@ -340,6 +366,18 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
   }}
   body.lamp-on .dark-hint {{
     opacity: 0;
+  }}
+
+  .form-section {{
+    display: none;
+  }}
+  .form-section.active {{
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }}
+  @keyframes fadeIn {{
+    from {{ opacity: 0; transform: translateY(4px); }}
+    to {{ opacity: 1; transform: translateY(0); }}
   }}
 </style>
 </head>
@@ -387,11 +425,11 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
     </svg>
 
     <div class="pull-tooltip" id="pullTooltip">
-      <span>💡</span> Kéo dây hoặc bấm phím Cách để bật đèn
+      <span>💡</span> Kéo dây hoặc bấm phím Cách để bật/tắt đèn
     </div>
   </div>
 
-  <!-- Thẻ Đăng Nhập -->
+  <!-- Thẻ Đăng Nhập & Đăng Ký -->
   <div class="card-area">
     <div class="dark-hint">
       <div style="font-size: 28px; margin-bottom: 8px;">🛋️</div>
@@ -399,32 +437,67 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
     </div>
 
     <div class="login-card" id="loginCard">
-      <div class="brand-badge">⚡ AI Quant Gateway</div>
-      <h2 class="card-title">Welcome</h2>
-      <p class="card-subtitle">Hệ thống phân tích tài chính & đầu tư định lượng</p>
+      <div class="card-header-bar">
+        <div class="brand-badge">⚡ AI Quant Gateway</div>
+        <span style="font-size: 11px; color: {MUTED};">Thị trường VN</span>
+      </div>
 
-      <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();">
-        <div class="form-group">
-          <label class="form-label" for="username">Username</label>
-          <input class="form-input" id="username" type="text" value="{default_user}" placeholder="admin" required autocomplete="username" />
-        </div>
+      <!-- Điều hướng tab Đăng nhập / Đăng ký -->
+      <div class="auth-nav">
+        <button type="button" class="nav-btn active" id="tabLoginBtn" onclick="showTab('login')">🔑 Đăng nhập</button>
+        <button type="button" class="nav-btn" id="tabRegisterBtn" onclick="showTab('register')">📝 Đăng ký</button>
+      </div>
 
-        <div class="form-group">
-          <label class="form-label" for="password">Password</label>
-          <input class="form-input" id="password" type="password" value="admin" placeholder="••••••••" required autocomplete="current-password" />
-        </div>
+      <!-- Form ĐĂNG NHẬP -->
+      <div class="form-section active" id="sectionLogin">
+        <form id="formLogin" onsubmit="event.preventDefault(); handleLogin();">
+          <div class="form-group">
+            <label class="form-label" for="login_user">Tên tài khoản (Username)</label>
+            <input class="form-input" id="login_user" type="text" value="{default_user}" placeholder="admin" required autocomplete="username" />
+          </div>
 
-        <button type="submit" class="btn-submit" id="btnSubmit">
-          <span>Sign In</span>
-          <span>→</span>
-        </button>
+          <div class="form-group">
+            <label class="form-label" for="login_pass">Mật khẩu (Password)</label>
+            <input class="form-input" id="login_pass" type="password" value="admin" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
 
-        <button type="button" class="btn-demo" onclick="handleDemoLogin()">
-          ⚡ Đăng nhập nhanh (Khách / Demo)
-        </button>
+          <button type="submit" class="btn-submit">
+            <span>Đăng nhập & Vào Dashboard</span>
+            <span>→</span>
+          </button>
+        </form>
+      </div>
 
-        <div class="status-msg" id="statusMsg"></div>
-      </form>
+      <!-- Form ĐĂNG KÝ -->
+      <div class="form-section" id="sectionRegister">
+        <form id="formRegister" onsubmit="event.preventDefault(); handleRegister();">
+          <div class="form-group">
+            <label class="form-label" for="reg_user">Tên tài khoản mới</label>
+            <input class="form-input" id="reg_user" type="text" placeholder="Nhập tên tài khoản..." required autocomplete="username" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg_pass">Mật khẩu bảo vệ</label>
+            <input class="form-input" id="reg_pass" type="password" placeholder="Tối thiểu 4 ký tự..." required autocomplete="new-password" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg_pass2">Xác nhận mật khẩu</label>
+            <input class="form-input" id="reg_pass2" type="password" placeholder="Nhập lại mật khẩu..." required autocomplete="new-password" />
+          </div>
+
+          <button type="submit" class="btn-submit">
+            <span>Tạo tài khoản & Vào Dashboard</span>
+            <span>✨</span>
+          </button>
+        </form>
+      </div>
+
+      <button type="button" class="btn-demo" onclick="handleDemoLogin()">
+        ⚡ Vào nhanh (Khách / Demo)
+      </button>
+
+      <div class="status-msg" id="statusMsg"></div>
     </div>
   </div>
 </div>
@@ -443,6 +516,27 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
   const cordHitArea = document.getElementById('cordHitArea');
   const statusMsg = document.getElementById('statusMsg');
   const pullTooltip = document.getElementById('pullTooltip');
+
+  // Chuyển tab Đăng nhập / Đăng ký
+  function showTab(tab) {{
+    const btnL = document.getElementById('tabLoginBtn');
+    const btnR = document.getElementById('tabRegisterBtn');
+    const secL = document.getElementById('sectionLogin');
+    const secR = document.getElementById('sectionRegister');
+    statusMsg.innerText = '';
+
+    if (tab === 'login') {{
+      btnL.classList.add('active');
+      btnR.classList.remove('active');
+      secL.classList.add('active');
+      secR.classList.remove('active');
+    }} else {{
+      btnR.classList.add('active');
+      btnL.classList.remove('active');
+      secR.classList.add('active');
+      secL.classList.remove('active');
+    }}
+  }}
 
   // Âm thanh cơ học khi giật dây (Web Audio API)
   function playClickSound() {{
@@ -474,12 +568,11 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
   function snapBack(callback) {{
     const start = currentPull;
     const startTime = performance.now();
-    const duration = 240; // ms
+    const duration = 240;
 
     function animate(now) {{
       const elapsed = now - startTime;
       const progress = Math.min(1, elapsed / duration);
-      // Overshoot bounce equation tương tự Tkinter
       const eased = (1 - Math.pow(1 - progress, 3)) - 0.12 * (1 - progress) * (progress > 0.5 ? 1 : 0);
       const val = start * (1 - Math.max(0, Math.min(1, eased)));
       updateCord(val);
@@ -499,14 +592,14 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
     playClickSound();
     if (isOn) {{
       document.body.classList.add('lamp-on');
-      pullTooltip.innerHTML = '<span>💡</span> Đèn đã bật! Nhập tài khoản hoặc kéo dây để tắt';
+      pullTooltip.innerHTML = '<span>💡</span> Đèn đã bật! Nhập thông tin hoặc kéo dây để tắt';
     }} else {{
       document.body.classList.remove('lamp-on');
       pullTooltip.innerHTML = '<span>💡</span> Kéo dây hoặc bấm phím Cách để bật đèn';
     }}
   }}
 
-  // Xử lý kéo thả (Pointer Events: chuột + cảm ứng)
+  // Kéo thả chuột và cảm ứng
   function onPointerDown(e) {{
     isDragging = true;
     startY = e.clientY;
@@ -539,7 +632,6 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
   cordHitArea.addEventListener('pointerdown', onPointerDown);
   cordKnob.addEventListener('pointerdown', onPointerDown);
 
-  // Click vào núm giật nếu không kéo
   cordHitArea.addEventListener('click', (e) => {{
     if (currentPull < 5) {{
       updateCord(45);
@@ -549,7 +641,6 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
     }}
   }});
 
-  // Phím Space để kéo dây
   window.addEventListener('keydown', (e) => {{
     if (e.code === 'Space' && e.target.tagName !== 'INPUT') {{
       e.preventDefault();
@@ -560,37 +651,61 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
     }}
   }});
 
-  // --- XỬ LÝ ĐĂNG NHẬP ---
-  function sendAuthToStreamlit(user) {{
-    statusMsg.innerText = `Xin chào, ${{user}}! Đang mở hệ thống...`;
+  // --- XỬ LÝ CHUYỂN HƯỚNG VÀO DASHBOARD CHÍNH ---
+  function redirectToDashboard(user, action) {{
+    statusMsg.innerText = '🎉 ' + (action === 'register' ? 'Đăng ký thành công' : 'Đăng nhập thành công') + '! Đang chuyển hướng...';
     
-    // Gửi thông điệp qua parent URL query params
+    // 1. Chuyển hướng qua URL query parameters của trang cha (Streamlit iframe)
     try {{
       const target = window.parent || window.top;
-      if (target && target.location) {{
+      if (target && target !== window && target.location) {{
         const url = new URL(target.location.href);
         url.searchParams.set('auth', 'true');
         url.searchParams.set('user', user);
+        url.searchParams.set('action', action);
         target.location.href = url.toString();
+        return;
       }}
     }} catch(e) {{
       console.warn('Parent window redirect restricted:', e);
     }}
-    
-    // Đăng tin qua postMessage để hỗ trợ Streamlit Component
+
+    // 2. Chuyển hướng nếu mở trang /login độc lập sang cổng Streamlit
     try {{
-      window.parent.postMessage({{ type: 'STREAMLIT_AUTH', user: user }}, '*');
+      const host = window.location.hostname || 'localhost';
+      window.location.href = 'http://' + host + ':8501/?auth=true&user=' + encodeURIComponent(user) + '&action=' + action;
+      return;
+    }} catch(e) {{}}
+
+    // 3. Dự phòng qua postMessage
+    try {{
+      window.parent.postMessage({{ type: 'STREAMLIT_AUTH', user: user, action: action }}, '*');
     }} catch(e) {{}}
   }}
 
   function handleLogin() {{
-    const user = document.getElementById('username').value.trim() || 'Admin';
-    sendAuthToStreamlit(user);
+    const user = document.getElementById('login_user').value.trim() || 'Admin';
+    redirectToDashboard(user, 'login');
+  }}
+
+  function handleRegister() {{
+    const user = document.getElementById('reg_user').value.trim();
+    const p1 = document.getElementById('reg_pass').value;
+    const p2 = document.getElementById('reg_pass2').value;
+
+    if (!user) {{
+      statusMsg.innerText = 'Vui lòng nhập tên tài khoản.';
+      return;
+    }}
+    if (p1 && p2 && p1 !== p2) {{
+      statusMsg.innerText = 'Mật khẩu xác nhận không khớp!';
+      return;
+    }}
+    redirectToDashboard(user, 'register');
   }}
 
   function handleDemoLogin() {{
-    document.getElementById('username').value = 'Guest_Trader';
-    sendAuthToStreamlit('Guest_Trader');
+    redirectToDashboard('Guest_Trader', 'demo');
   }}
 </script>
 </body>
@@ -599,61 +714,76 @@ def build_lamp_html(initial_on: bool = False, default_user: str = "admin") -> st
 
 
 def render_login_screen() -> None:
-    """Hiển thị màn hình Lamp Login đầy đủ trước khi cho phép vào nền tảng."""
-    # 1. Kiểm tra query parameters từ iframe redirect
+    """Hiển thị màn hình Lamp Login và Đăng ký trước khi vào Dashboard chính."""
+    # 1. Kiểm tra query parameters từ redirect
     query_auth = st.query_params.get("auth")
     if query_auth == "true":
         user = st.query_params.get("user", "Admin")
+        action = st.query_params.get("action", "login")
         st.session_state["authenticated"] = True
         st.session_state["username"] = user
+        st.session_state["action"] = action
         st.query_params.clear()
         st.rerun()
 
     # 2. Render Interactive Lamp Animation Canvas
-    # Streamlit component iframe
-    components.html(build_lamp_html(initial_on=True, default_user="Admin"), height=580)
+    components.html(build_lamp_html(initial_on=True, default_user="Admin"), height=610)
 
-    # 3. Native Streamlit Quick Action Bar (Đảm bảo 100% người dùng đăng nhập mượt mà ở mọi trình duyệt)
+    # 3. Native Streamlit Action Box (Hỗ trợ 100% người dùng trên mọi trình duyệt)
     st.markdown(
-        f'<div style="text-align:center;margin-top:10px;margin-bottom:20px;'
-        f'padding:12px;background:{CARD_ON};border:1px solid rgba(216,180,95,0.3);'
-        f'border-radius:10px;max-width:600px;margin-left:auto;margin-right:auto;">'
-        f'<div style="font-size:13px;color:{GOLD};font-weight:700;margin-bottom:6px;">'
-        f'⚡ XÁC THỰC TRUY CẬP HỆ THỐNG ĐỊNH LƯỢNG</div>'
-        f'<div style="font-size:12px;color:{MUTED};margin-bottom:12px;">'
-        f'Kéo dây đèn ở khung hoạt hình phía trên hoặc xác nhận nhanh trực tiếp bên dưới:</div>'
+        f'<div style="text-align:center;margin-top:5px;margin-bottom:15px;'
+        f'padding:10px 14px;background:{CARD_ON};border:1px solid rgba(216,180,95,0.3);'
+        f'border-radius:10px;max-width:620px;margin-left:auto;margin-right:auto;">'
+        f'<div style="font-size:13px;color:{GOLD};font-weight:700;margin-bottom:4px;">'
+        f'⚡ CỔNG ĐĂNG NHẬP & ĐĂNG KÝ HỆ THỐNG ĐỊNH LƯỢNG</div>'
+        f'<div style="font-size:11.5px;color:{MUTED};">'
+        f'Thao tác trên khung hoạt hình kéo dây ở trên hoặc xác nhận nhanh ngay dưới đây:</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
 
-    _, col_form, _ = st.columns([1, 2, 1])
+    _, col_form, _ = st.columns([1, 2.2, 1])
     with col_form:
-        with st.form("native_login_form"):
-            user_input = st.text_input(
-                "Tên đăng nhập (Username)",
-                value="Admin",
-                placeholder="Nhập tên đăng nhập...",
-            )
-            pass_input = st.text_input(
-                "Mật khẩu (Password)",
-                value="admin",
-                type="password",
-                placeholder="Nhập mật khẩu...",
-            )
-            c1, c2 = st.columns(2)
-            btn_signin = c1.form_submit_button(
-                "✨ Đăng nhập (Sign In)",
-                use_container_width=True,
-                type="primary",
-            )
-            btn_guest = c2.form_submit_button(
-                "⚡ Vào nhanh (Guest)",
-                use_container_width=True,
-            )
+        tab_login, tab_reg, tab_quick = st.tabs(["🔑 Đăng nhập", "📝 Đăng ký tài khoản", "⚡ Vào nhanh"])
 
-            if btn_signin or btn_guest:
-                chosen_user = (user_input.strip() or "Admin") if btn_signin else "Guest_Trader"
+        with tab_login:
+            with st.form("form_native_login"):
+                u_in = st.text_input("Tên đăng nhập", value="Admin", key="login_u")
+                p_in = st.text_input("Mật khẩu", value="admin", type="password", key="login_p")
+                btn_log = st.form_submit_button("✨ Đăng nhập & Vào Dashboard", use_container_width=True, type="primary")
+                if btn_log:
+                    user_final = u_in.strip() or "Admin"
+                    st.session_state["authenticated"] = True
+                    st.session_state["username"] = user_final
+                    st.success(f"🎉 Đăng nhập thành công! Chào mừng **{user_final}** đến với Dashboard.")
+                    st.rerun()
+
+        with tab_reg:
+            with st.form("form_native_reg"):
+                u_new = st.text_input("Tên tài khoản mới", placeholder="Nhập tên tài khoản của bạn...", key="reg_u")
+                p_new1 = st.text_input("Mật khẩu mới", type="password", placeholder="Tối thiểu 4 ký tự...", key="reg_p1")
+                p_new2 = st.text_input("Xác nhận mật khẩu", type="password", placeholder="Nhập lại mật khẩu...", key="reg_p2")
+                btn_reg = st.form_submit_button("📝 Tạo tài khoản & Vào Dashboard", use_container_width=True, type="primary")
+                if btn_reg:
+                    if not u_new.strip():
+                        st.error("Vui lòng nhập tên tài khoản.")
+                    elif p_new1 and p_new2 and p_new1 != p_new2:
+                        st.error("Mật khẩu xác nhận không khớp!")
+                    else:
+                        reg_user = u_new.strip()
+                        st.session_state["authenticated"] = True
+                        st.session_state["username"] = reg_user
+                        st.session_state["is_new_user"] = True
+                        st.success(f"🎉 Đăng ký thành công! Đang đưa **{reg_user}** vào Dashboard chính...")
+                        st.rerun()
+
+        with tab_quick:
+            st.markdown(
+                f'<div style="font-size:12px;color:{MUTED};margin-bottom:10px;">'
+                f'Khám phá toàn bộ tính năng phân tích định lượng ngay lập tức mà không cần mật khẩu.</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("⚡ Vào ngay với quyền Khách (Guest)", use_container_width=True):
                 st.session_state["authenticated"] = True
-                st.session_state["username"] = chosen_user
-                st.success(f"🎉 Xin chào, **{chosen_user}**! Đang kết nối vào hệ thống định lượng...")
+                st.session_state["username"] = "Guest_Trader"
                 st.rerun()

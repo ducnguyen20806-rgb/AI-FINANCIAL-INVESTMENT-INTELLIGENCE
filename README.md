@@ -199,7 +199,7 @@ python run.py --test        # Chạy tự động toàn bộ 66 ca kiểm thử 
 Hệ thống được bảo vệ bởi cổng đăng nhập phong cách thẩm mỹ tối giản sang trọng:
 - **Tương tác kéo dây vật lý**: Nhấp và kéo dây đèn bằng chuột, vuốt chạm cảm ứng hoặc phím Cách (Space) với hiệu ứng nảy lò xo (spring overshoot bounce).
 - **Chuyển màu mượt mà**: Phòng chuyển từ trạng thái tối (`#121417`) sang ánh sáng ấm (`#1c1f24`), chùm sáng rọi xuống bàn làm việc và thẻ đăng nhập viền vàng kim (`#d8b45f`) bừng sáng.
-- **Đăng nhập tiện lợi**: Hỗ trợ tài khoản mẫu (`admin` / `admin`) hoặc nút **"⚡ Đăng nhập nhanh (Khách / Demo)"** chỉ với 1 cú nhấp chuột.
+- **Đăng nhập & Đăng ký**: Hỗ trợ chuyển đổi linh hoạt giữa Đăng nhập (Sign In) và Đăng ký (Sign Up), hoặc nút **"⚡ Đăng nhập nhanh (Khách / Demo)"** chỉ với 1 cú nhấp chuột để chuyển hướng ngay vào Dashboard chính.
 - **Bản Desktop đi kèm**: File độc lập `login_lamp.py` viết bằng Python Tkinter thuần, không cần cài đặt thêm bất kỳ thư viện nào (`python login_lamp.py`).
 
 ---

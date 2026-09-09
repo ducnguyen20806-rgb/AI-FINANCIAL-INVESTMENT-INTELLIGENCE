@@ -64,6 +64,10 @@ if not st.session_state.get("authenticated", False):
     render_login_screen()
     st.stop()
 
+if st.session_state.pop("is_new_user", False):
+    st.toast(f"🎉 Chào mừng {st.session_state.get('username')} gia nhập nền tảng!", icon="🚀")
+
+
 
 
 # ---------------------------------------------------------------------------
