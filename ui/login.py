@@ -187,14 +187,14 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
   }}
 
   .login-card {{
-    background: {CARD_OFF};
-    border: 1px solid #232629;
+    background: rgba(22, 25, 29, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 14px;
-    padding: 26px 26px;
+    padding: 24px 26px;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-    opacity: 0.12;
-    transform: scale(0.98);
-    pointer-events: none;
+    opacity: 0.95;
+    transform: scale(0.99);
+    pointer-events: auto;
     transition: background 0.6s cubic-bezier(0.25, 1, 0.5, 1),
                 border-color 0.6s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1),
@@ -204,11 +204,10 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
 
   body.lamp-on .login-card {{
     background: {CARD_ON};
-    border-color: rgba(216, 180, 95, 0.45);
+    border-color: rgba(216, 180, 95, 0.70);
     opacity: 1;
     transform: scale(1);
-    pointer-events: auto;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(216, 180, 95, 0.18);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(216, 180, 95, 0.35);
   }}
 
   .card-header-bar {{
@@ -425,21 +424,16 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     </svg>
 
     <div class="pull-tooltip" id="pullTooltip">
-      <span>💡</span> Kéo dây hoặc bấm phím Cách để bật/tắt đèn
+      <span>💡</span> Kéo dây đèn (hoặc bấm phím Cách) để BẬT SÁNG & ĐĂNG NHẬP
     </div>
   </div>
 
   <!-- Thẻ Đăng Nhập & Đăng Ký -->
   <div class="card-area">
-    <div class="dark-hint">
-      <div style="font-size: 28px; margin-bottom: 8px;">🛋️</div>
-      Phòng đang tối.<br>Hãy kéo dây đèn để bật sáng hệ thống.
-    </div>
-
     <div class="login-card" id="loginCard">
       <div class="card-header-bar">
-        <div class="brand-badge">⚡ AI Quant Gateway</div>
-        <span style="font-size: 11px; color: {MUTED};">Thị trường VN</span>
+        <div class="brand-badge">⚡ AI QUANT INTELLIGENCE</div>
+        <span style="font-size: 11px; color: {GOLD}; font-weight: 600;">Kéo đèn để mở khoá</span>
       </div>
 
       <!-- Điều hướng tab Đăng nhập / Đăng ký -->
@@ -462,7 +456,7 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
           </div>
 
           <button type="submit" class="btn-submit">
-            <span>Đăng nhập & Vào Dashboard</span>
+            <span>💡 Đăng nhập & Bật Đèn Vào Dashboard</span>
             <span>→</span>
           </button>
         </form>
@@ -487,7 +481,7 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
           </div>
 
           <button type="submit" class="btn-submit">
-            <span>Tạo tài khoản & Vào Dashboard</span>
+            <span>✨ Tạo tài khoản & Bật Đèn Vào Dashboard</span>
             <span>✨</span>
           </button>
         </form>
@@ -587,16 +581,49 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     requestAnimationFrame(animate);
   }}
 
-  function toggleLamp() {{
-    isOn = !isOn;
-    playClickSound();
-    if (isOn) {{
-      document.body.classList.add('lamp-on');
-      pullTooltip.innerHTML = '<span>💡</span> Đèn đã bật! Nhập thông tin hoặc kéo dây để tắt';
-    }} else {{
-      document.body.classList.remove('lamp-on');
-      pullTooltip.innerHTML = '<span>💡</span> Kéo dây hoặc bấm phím Cách để bật đèn';
+  // --- UPGRADE: ĐĂNG NHẬP BẰNG KÉO ĐÈN BẬT SÁNG ---
+  function triggerLampLogin(customUser, customAction) {{
+    // Xác định thông tin tài khoản
+    let user = customUser;
+    let action = customAction || 'login';
+
+    if (!user) {{
+      const isReg = document.getElementById('tabRegisterBtn').classList.contains('active');
+      if (isReg) {{
+        user = document.getElementById('reg_user').value.trim();
+        const p1 = document.getElementById('reg_pass').value;
+        const p2 = document.getElementById('reg_pass2').value;
+        if (!user) {{
+          statusMsg.innerText = '⚠️ Vui lòng nhập tên tài khoản đăng ký.';
+          return;
+        }}
+        if (p1 && p2 && p1 !== p2) {{
+          statusMsg.innerText = '⚠️ Mật khẩu xác nhận không khớp!';
+          return;
+        }}
+        action = 'register';
+      }} else {{
+        user = document.getElementById('login_user').value.trim() || 'Admin';
+        action = 'login';
+      }}
     }}
+
+    // Hiệu ứng vật lý: Dây đèn giật dãn xuống -> Lò xo nảy bật lên -> Âm thanh cơ học -> Đèn bừng sáng!
+    updateCord(52);
+    setTimeout(() => {{
+      snapBack(() => {{
+        isOn = true;
+        playClickSound();
+        document.body.classList.add('lamp-on');
+        pullTooltip.innerHTML = '<span>✨</span> Đèn đã bật sáng! Đang mở khóa Dashboard...';
+        statusMsg.innerHTML = '<span style="color:#d8b45f;font-weight:700;font-size:13px;">💡 Đèn đã bật sáng! Chào mừng ' + user + '...</span>';
+        
+        // Tự động chuyển hướng vào Dashboard chính sau khi đèn sáng rực rỡ
+        setTimeout(() => {{
+          redirectToDashboard(user, action);
+        }}, 400);
+      }});
+    }}, 50);
   }}
 
   // Kéo thả chuột và cảm ứng
@@ -624,30 +651,29 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     window.removeEventListener('pointerup', onPointerUp);
 
     const shouldToggle = currentPull >= PULL_THRESHOLD;
-    snapBack(() => {{
-      if (shouldToggle) toggleLamp();
-    }});
+    if (shouldToggle) {{
+      // Kéo dây đèn -> Bật sáng đèn và Đăng nhập vào Dashboard luôn!
+      triggerLampLogin();
+    }} else {{
+      snapBack();
+    }}
   }}
 
   cordHitArea.addEventListener('pointerdown', onPointerDown);
   cordKnob.addEventListener('pointerdown', onPointerDown);
 
+  // Click vào dây/núm giật -> Tự động kéo đèn sáng và đăng nhập
   cordHitArea.addEventListener('click', (e) => {{
     if (currentPull < 5) {{
-      updateCord(45);
-      setTimeout(() => {{
-        snapBack(() => toggleLamp());
-      }}, 80);
+      triggerLampLogin();
     }}
   }});
 
+  // Bấm phím Cách (Spacebar) -> Kéo đèn sáng và đăng nhập
   window.addEventListener('keydown', (e) => {{
     if (e.code === 'Space' && e.target.tagName !== 'INPUT') {{
       e.preventDefault();
-      updateCord(50);
-      setTimeout(() => {{
-        snapBack(() => toggleLamp());
-      }}, 100);
+      triggerLampLogin();
     }}
   }});
 
@@ -700,7 +726,7 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
 
   function handleLogin() {{
     const user = document.getElementById('login_user').value.trim() || 'Admin';
-    redirectToDashboard(user, 'login');
+    triggerLampLogin(user, 'login');
   }}
 
   function handleRegister() {{
@@ -709,18 +735,18 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     const p2 = document.getElementById('reg_pass2').value;
 
     if (!user) {{
-      statusMsg.innerText = 'Vui lòng nhập tên tài khoản.';
+      statusMsg.innerText = '⚠️ Vui lòng nhập tên tài khoản.';
       return;
     }}
     if (p1 && p2 && p1 !== p2) {{
-      statusMsg.innerText = 'Mật khẩu xác nhận không khớp!';
+      statusMsg.innerText = '⚠️ Mật khẩu xác nhận không khớp!';
       return;
     }}
-    redirectToDashboard(user, 'register');
+    triggerLampLogin(user, 'register');
   }}
 
   function handleDemoLogin() {{
-    redirectToDashboard('Guest_Trader', 'demo');
+    triggerLampLogin('Guest_Trader', 'demo');
   }}
 </script>
 <form id="auth_top_form" action="" method="GET" target="_top" style="display:none;">
@@ -737,6 +763,7 @@ def render_login_screen() -> None:
     """
     Cổng đăng nhập duy nhất bằng hoạt hình kéo dây đèn (Lamp Login & Register).
     Đã loại bỏ hoàn toàn các form bên dưới cùng theo yêu cầu.
+    Nâng cấp: Đăng nhập bằng cách kéo đèn sáng bừng lên!
     """
     # 1. Kiểm tra query parameters từ redirect
     query_auth = st.query_params.get("auth")
@@ -748,5 +775,5 @@ def render_login_screen() -> None:
         st.session_state["action"] = action
         st.rerun()
 
-    # 2. Cổng đăng nhập duy nhất: Interactive Lamp Animation Canvas
-    components.html(build_lamp_html(initial_on=True, default_user="Admin"), height=650)
+    # 2. Cổng đăng nhập duy nhất: Interactive Lamp Animation Canvas (mặc định bắt đầu từ đèn tắt để kéo đèn sáng)
+    components.html(build_lamp_html(initial_on=False, default_user="Admin"), height=650)
