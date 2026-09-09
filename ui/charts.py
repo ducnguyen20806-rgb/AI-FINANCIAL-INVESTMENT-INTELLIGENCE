@@ -372,10 +372,12 @@ def dcf_sensitivity_heatmap(sensitivity: dict[str, Any], current_price: float = 
             hoverongaps=False,
         )
     )
-    layout = plotly_layout(height=380)
+    layout = plotly_layout(
+        height=380,
+        title="Ma trận Định giá DCF theo Chi phí vốn (WACC) và Tăng trưởng vĩnh viễn (g)",
+    )
     fig.update_layout(
         **layout,
-        title="Ma trận Định giá DCF theo Chi phí vốn (WACC) và Tăng trưởng vĩnh viễn (g)",
         xaxis_title="Tốc độ tăng trưởng dài hạn (g)",
         yaxis_title="Chi phí vốn bình quân (WACC)",
     )
@@ -441,10 +443,12 @@ def efficient_frontier_chart(opt_data: dict[str, Any]) -> go.Figure:
             )
         )
 
-    layout = plotly_layout(height=420)
+    layout = plotly_layout(
+        height=420,
+        title="Đường biên hiệu quả Markowitz (Risk vs Return)",
+    )
     fig.update_layout(
         **layout,
-        title="Đường biên hiệu quả Markowitz (Risk vs Return)",
         xaxis_title="Độ lệch chuẩn biến động năm (%)",
         yaxis_title="Lợi suất kỳ vọng năm (%)",
         showlegend=True,
@@ -479,10 +483,12 @@ def multi_ticker_radar_chart(comparison: dict[str, dict[str, float]]) -> go.Figu
             )
         )
 
-    layout = plotly_layout(height=420)
+    layout = plotly_layout(
+        height=420,
+        title="So sánh 5 Trụ cột Investment Score",
+    )
     fig.update_layout(
         **layout,
-        title="So sánh 5 Trụ cột Investment Score",
         polar=dict(
             radialaxis=dict(visible=True, range=[0, 100], gridcolor=COLORS["line"], color=COLORS["muted"]),
             angularaxis=dict(gridcolor=COLORS["line"], color=COLORS["text"]),

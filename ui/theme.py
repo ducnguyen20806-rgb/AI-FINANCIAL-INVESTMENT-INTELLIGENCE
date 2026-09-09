@@ -1,14 +1,15 @@
 """
 ui/theme.py
-Hệ thống thị giác của nền tảng.
+Hệ thống thị giác & Thiết kế giao diện cao cấp — AI Financial Platform
 
-Bảng màu lấy trực tiếp từ quy ước bảng giá chứng khoán Việt Nam (HOSE/HNX):
-tím = giá trần, xanh lá = tăng, vàng = tham chiếu, đỏ = giảm, xanh lơ = sàn.
-Người dùng Việt Nam đọc màu này theo phản xạ, nên toàn bộ số liệu giá trong
-giao diện đều tuân thủ đúng quy ước đó thay vì dùng bảng màu chung chung.
-
-Chữ: Be Vietnam Pro (hiển thị & nội dung, hỗ trợ đầy đủ dấu tiếng Việt),
-JetBrains Mono (số liệu — chữ số đều bề rộng nên các cột số thẳng hàng).
+Bảng màu:
+- Tông nền: Navy Dark / Deep Slate (#0B0F17, #0F172A)
+- Thẻ chứa dữ liệu: Hiệu ứng kính mờ (Glassmorphism) rgba(30, 41, 59, 0.70) với backdrop blur
+- Viền nét: 1px solid rgba(255, 255, 255, 0.08)
+- Nút nhấn: Tông Slate tinh tế (#1E293B) và Vàng kim (#D8B45F), loại bỏ xanh dương chói gắt
+- Màu chuẩn bảng giá chứng khoán Việt Nam (HOSE/HNX):
+    Tím (Trần: #B44BFF), Xanh lá (Tăng: #00C566), Vàng (Tham chiếu: #F5C518),
+    Đỏ (Giảm: #FF4D4D), Xanh lơ (Sàn: #00C2D1)
 """
 from __future__ import annotations
 
@@ -16,18 +17,22 @@ from __future__ import annotations
 # Bảng màu
 # ---------------------------------------------------------------------------
 COLORS = {
-    "ink": "#0A0E14",        # nền bảng điện
-    "panel": "#121821",      # nền thẻ
-    "panel_alt": "#0F141C",
-    "line": "#1E2733",       # đường kẻ
-    "text": "#E4EAF2",
-    "muted": "#8494A8",
-    "ceiling": "#B44BFF",    # giá trần
-    "up": "#00C566",         # tăng giá
-    "reference": "#F5C518",  # tham chiếu
-    "down": "#FF4D4D",       # giảm giá
-    "floor": "#00C2D1",      # giá sàn
-    "accent": "#4C8DFF",     # điểm nhấn trung tính (không mang nghĩa tăng/giảm)
+    "ink": "#0B0F17",           # Nền Slate/Navy sẫm
+    "panel": "rgba(30, 41, 59, 0.70)", # Thẻ kính mờ Glassmorphism
+    "panel_solid": "#1E293B",   # Nền khối đặc
+    "panel_alt": "#0F172A",     # Nền phụ
+    "line": "rgba(255, 255, 255, 0.08)", # Đường phân cách viền mỏng
+    "text": "#F8FAFC",          # Chữ sáng Slate
+    "text_sub": "#CBD5E1",      # Chữ phụ
+    "muted": "#94A3B8",         # Chữ mờ / chú thích
+    "ceiling": "#B44BFF",       # Giá trần (Tím)
+    "up": "#00C566",            # Tăng giá (Xanh lá)
+    "reference": "#F5C518",     # Tham chiếu (Vàng)
+    "down": "#FF4D4D",          # Giảm giá (Đỏ)
+    "floor": "#00C2D1",         # Giá sàn (Xanh lơ)
+    "accent": "#38BDF8",        # Điểm nhấn Sky Blue
+    "gold": "#D8B45F",          # Điểm nhấn Vàng Kim
+    "gold_hover": "#E6C877",    # Vàng kim hover
 }
 
 # Màu theo trạng thái nghiệp vụ
@@ -56,7 +61,7 @@ PILLAR_LABELS = {
 
 
 def price_color(price: float, ref: float, ceiling: float, floor: float) -> str:
-    """Trả về mã màu của một mức giá theo đúng quy ước bảng điện."""
+    """Trả về mã màu của một mức giá theo đúng quy ước bảng điện HOSE."""
     if ceiling and abs(price - ceiling) < 1e-6:
         return COLORS["ceiling"]
     if floor and abs(price - floor) < 1e-6:
@@ -71,27 +76,29 @@ def price_color(price: float, ref: float, ceiling: float, floor: float) -> str:
 
 
 def score_color(score: float) -> str:
+    """Màu sắc theo điểm số Investment Score."""
     if score >= 70:
         return COLORS["up"]
     if score >= 50:
         return COLORS["reference"]
     if score >= 35:
-        return "#FF8A3D"
+        return "#FB923C"
     return COLORS["down"]
 
 
 # ---------------------------------------------------------------------------
-# CSS
+# CSS HỆ THỐNG GIAO DIỆN (GLASSMORPHISM & NAVY THEME)
 # ---------------------------------------------------------------------------
 def build_css() -> str:
     c = COLORS
     return f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {{
   --ink: {c['ink']};
   --panel: {c['panel']};
+  --panel-solid: {c['panel_solid']};
   --line: {c['line']};
   --text: {c['text']};
   --muted: {c['muted']};
@@ -101,172 +108,339 @@ def build_css() -> str:
   --ceiling: {c['ceiling']};
   --floor: {c['floor']};
   --accent: {c['accent']};
+  --gold: {c['gold']};
 }}
 
+/* Ẩn hoàn toàn thanh Header mặc định của Streamlit (bỏ chữ Deploy và khoảng đen trên cùng) */
+header[data-testid="stHeader"] {{
+  display: none !important;
+}}
+#MainMenu, footer {{
+  visibility: hidden !important;
+  display: none !important;
+}}
+
+/* Toàn bộ Canvas chính */
 .stApp {{
-  background: var(--ink);
-  color: var(--text);
-  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+  background: {c['ink']} !important;
+  color: {c['text']} !important;
+  font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
 }}
 
+/* Bố cục Grid & loại bỏ lề đen thừa */
+.block-container {{
+  padding-top: 0.75rem !important;
+  padding-bottom: 2rem !important;
+  padding-left: 1.75rem !important;
+  padding-right: 1.75rem !important;
+  max-width: 100% !important;
+}}
+
+/* Thanh Sidebar bên trái thu nhỏ đúng 240px */
 section[data-testid="stSidebar"] {{
-  background: {c['panel_alt']};
-  border-right: 1px solid var(--line);
+  width: 240px !important;
+  min-width: 240px !important;
+  max-width: 240px !important;
+  background: #0B0F17 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}}
+section[data-testid="stSidebar"] > div {{
+  width: 240px !important;
+  padding: 1.25rem 0.9rem !important;
 }}
 
+/* Typography */
 h1, h2, h3, h4 {{
-  font-family: 'Be Vietnam Pro', sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif !important;
   letter-spacing: -0.02em;
-  color: var(--text);
+  color: {c['text']};
 }}
 
-/* ---------- Thanh tiêu đề mã cổ phiếu ---------- */
-.symbol-head {{
-  display: flex; align-items: baseline; gap: 14px;
+/* ---------- THANH ĐIỀU HƯỚNG CỐ ĐỊNH TRÊN CÙNG (TOP NAVIGATION BAR) ---------- */
+.top-navbar {{
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 18px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}}
+
+.nav-brand {{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}}
+.nav-logo {{
+  font-size: 20px;
+  filter: drop-shadow(0 0 8px rgba(216, 180, 95, 0.6));
+}}
+.nav-title {{
+  font-size: 14.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: {c['text']};
+}}
+.nav-subtitle {{
+  font-size: 10.5px;
+  color: {c['muted']};
+  letter-spacing: 0.02em;
+}}
+
+.nav-user-badge {{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 6px 12px;
+}}
+
+/* ---------- THẺ HEADER CÔNG TY (DISPLAY FONT) ---------- */
+.company-header {{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   padding: 4px 0 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 14px;
 }}
-.symbol-code {{
-  font-size: 46px; font-weight: 800; line-height: 1;
+.company-title-wrap {{
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}}
+.company-symbol-display {{
+  font-family: 'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif;
+  font-size: 40px;
+  font-weight: 800;
   letter-spacing: -0.03em;
+  line-height: 1;
+  color: #FFFFFF;
 }}
-.symbol-meta {{
-  font-size: 13px; color: var(--muted);
-  font-family: 'JetBrains Mono', monospace;
+.company-fullname {{
+  font-size: 15px;
+  font-weight: 600;
+  color: #CBD5E1;
+}}
+.company-sector {{
+  font-size: 12px;
+  color: {c['muted']};
 }}
 
-/* ---------- Dải bảng giá (signature) ---------- */
-.price-board {{
+/* ---------- DẢI TICKER STRIP LIỀN MẠCH ---------- */
+.ticker-strip {{
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  grid-template-columns: repeat(6, 1fr);
+  background: rgba(30, 41, 59, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
   overflow: hidden;
-  background: var(--panel);
-  margin-bottom: 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 }}
-.pb-cell {{
-  padding: 12px 14px;
-  border-right: 1px solid var(--line);
+.ticker-cell {{
+  padding: 10px 14px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }}
-.pb-cell:last-child {{ border-right: none; }}
-.pb-label {{
-  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.14em;
-  color: var(--muted); margin-bottom: 6px;
+.ticker-cell:last-child {{
+  border-right: none;
 }}
-.pb-value {{
+.ticker-label {{
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: {c['muted']};
+  margin-bottom: 3px;
+}}
+.ticker-value {{
   font-family: 'JetBrains Mono', monospace;
-  font-size: 20px; font-weight: 700; line-height: 1.1;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
 }}
-.pb-sub {{
+.ticker-sub {{
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px; color: var(--muted); margin-top: 3px;
+  font-size: 11px;
+  color: {c['muted']};
+  margin-top: 3px;
 }}
 
-/* ---------- Thẻ số liệu ---------- */
-.kpi {{
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+/* ---------- KHỐI SCORECARDS ĐỊNH LƯỢNG (HIỆU ỨNG KÍNH MỜ + METER) ---------- */
+.scorecard {{
+  background: rgba(30, 41, 59, 0.70);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
   padding: 14px 16px;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 120px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  transition: transform 0.2s ease, border-color 0.2s ease;
 }}
-.kpi-label {{
-  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.14em;
-  color: var(--muted); margin-bottom: 8px;
+.scorecard:hover {{
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-2px);
 }}
-.kpi-value {{
+.scorecard-label {{
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: {c['muted']};
+  margin-bottom: 6px;
+}}
+.scorecard-value {{
   font-family: 'JetBrains Mono', monospace;
-  font-size: 26px; font-weight: 700; line-height: 1.15;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 4px;
 }}
-.kpi-note {{ font-size: 12px; color: var(--muted); margin-top: 6px; }}
+.scorecard-sub {{
+  font-size: 11.5px;
+  color: #CBD5E1;
+}}
+.mini-meter-track {{
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+}}
+.mini-meter-fill {{
+  height: 100%;
+  border-radius: 3px;
+}}
 
-/* ---------- Thanh điểm 5 trụ cột ---------- */
-.pillar-row {{ margin-bottom: 12px; }}
-.pillar-top {{
-  display: flex; justify-content: space-between;
-  font-size: 12.5px; margin-bottom: 5px;
+/* ---------- THẺ DỮ LIỆU CHUNG (GLASSMORPHISM) ---------- */
+.glass-panel {{
+  background: rgba(30, 41, 59, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
 }}
-.pillar-name {{ color: var(--text); }}
-.pillar-num {{ font-family: 'JetBrains Mono', monospace; color: var(--muted); }}
-.pillar-track {{
-  height: 7px; background: #1A222D; border-radius: 4px; overflow: hidden;
-}}
-.pillar-fill {{ height: 100%; border-radius: 4px; }}
 
-/* ---------- Thẻ 12 chỉ số ---------- */
+/* ---------- NÚT NHẤN TINH TẾ (SLATE & GOLD) ---------- */
+.stButton > button {{
+  background: #1E293B !important;
+  color: #F8FAFC !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  padding: 6px 14px !important;
+  font-size: 12.5px !important;
+  transition: all 0.2s ease !important;
+}}
+.stButton > button:hover {{
+  background: #334155 !important;
+  border-color: rgba(216, 180, 95, 0.6) !important;
+  color: {c['gold']} !important;
+}}
+.stButton > button[kind="primary"] {{
+  background: {c['gold']} !important;
+  color: #1E1B18 !important;
+  border: none !important;
+  font-weight: 700 !important;
+}}
+.stButton > button[kind="primary"]:hover {{
+  background: {c['gold_hover']} !important;
+  box-shadow: 0 4px 14px rgba(216, 180, 95, 0.4) !important;
+}}
+
+/* Thẻ 12 chỉ số */
 .metric-card {{
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-  border-radius: 4px;
+  background: rgba(30, 41, 59, 0.65);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid {c['accent']};
+  border-radius: 6px;
   padding: 12px 14px;
   margin-bottom: 10px;
 }}
 .metric-no {{
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; color: var(--muted);
+  font-size: 10px;
+  color: {c['muted']};
 }}
-.metric-name {{ font-size: 13.5px; font-weight: 600; margin: 2px 0 6px 0; }}
+.metric-name {{
+  font-size: 13px;
+  font-weight: 600;
+  margin: 2px 0 4px 0;
+}}
 .metric-value {{
   font-family: 'JetBrains Mono', monospace;
-  font-size: 17px; font-weight: 700; color: var(--text);
+  font-size: 16.5px;
+  font-weight: 700;
+  color: {c['text']};
 }}
-.metric-note {{ font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }}
+.metric-note {{
+  font-size: 11.5px;
+  color: {c['muted']};
+  margin-top: 4px;
+  line-height: 1.45;
+}}
 
-/* ---------- Nhãn trạng thái ---------- */
+/* Nhãn trạng thái */
 .badge {{
-  display: inline-block; padding: 4px 11px; border-radius: 3px;
-  font-size: 12px; font-weight: 600; letter-spacing: 0.03em;
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }}
 
-/* ---------- Bảng ---------- */
-.stDataFrame, .stTable {{ font-family: 'JetBrains Mono', monospace; }}
-
-/* ---------- Tabs ---------- */
-.stTabs [data-baseweb="tab-list"] {{
-  gap: 2px; border-bottom: 1px solid var(--line);
-}}
-.stTabs [data-baseweb="tab"] {{
-  background: transparent; color: var(--muted);
-  font-size: 13.5px; padding: 9px 16px;
-}}
-.stTabs [aria-selected="true"] {{
-  color: var(--text); border-bottom: 2px solid var(--accent);
+/* Bảng */
+.stDataFrame, .stTable {{
+  font-family: 'JetBrains Mono', monospace;
 }}
 
-/* ---------- Nút ---------- */
-.stButton > button {{
-  background: var(--accent); color: #06101F; border: none;
-  font-weight: 600; border-radius: 4px; width: 100%;
-}}
-.stButton > button:hover {{ background: #6BA1FF; color: #06101F; }}
-
-/* ---------- Ghi chú nhỏ ---------- */
+/* Footnote */
 .footnote {{
-  font-size: 11.5px; color: var(--muted); line-height: 1.6;
-  border-top: 1px solid var(--line); padding-top: 12px; margin-top: 22px;
+  font-size: 11px;
+  color: {c['muted']};
+  line-height: 1.6;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 12px;
+  margin-top: 20px;
 }}
-
-/* Ẩn menu mặc định của Streamlit */
-#MainMenu, footer {{ visibility: hidden; }}
 </style>
 """
 
 
 def plotly_layout(height: int = 380, title: str = "") -> dict:
-    """Layout Plotly dùng chung, đồng bộ với theme."""
+    """Layout Plotly kính mờ đồng bộ hoàn hảo với theme Glassmorphism."""
     c = COLORS
     return dict(
         height=height,
-        title=dict(text=title, font=dict(size=14, color=c["text"], family="Be Vietnam Pro")),
+        title=dict(text=title, font=dict(size=13.5, color=c["text"], family="Plus Jakarta Sans, Be Vietnam Pro")),
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor=c["panel"],
+        plot_bgcolor="rgba(30, 41, 59, 0.45)",
         font=dict(family="JetBrains Mono, monospace", size=11, color=c["muted"]),
-        margin=dict(l=10, r=10, t=40 if title else 14, b=10),
-        xaxis=dict(gridcolor=c["line"], zerolinecolor=c["line"], showspikes=False),
-        yaxis=dict(gridcolor=c["line"], zerolinecolor=c["line"]),
+        margin=dict(l=12, r=12, t=42 if title else 14, b=12),
+        xaxis=dict(gridcolor="rgba(255, 255, 255, 0.06)", zerolinecolor="rgba(255, 255, 255, 0.08)", showspikes=False),
+        yaxis=dict(gridcolor="rgba(255, 255, 255, 0.06)", zerolinecolor="rgba(255, 255, 255, 0.08)"),
         legend=dict(orientation="h", yanchor="bottom", y=1.0, x=0,
                     bgcolor="rgba(0,0,0,0)", font=dict(size=10)),
-        hoverlabel=dict(bgcolor=c["panel"], font_size=11,
+        hoverlabel=dict(bgcolor="#1E293B", font_size=11,
                         font_family="JetBrains Mono, monospace"),
     )
