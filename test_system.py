@@ -332,6 +332,27 @@ def test_cache_and_tools(data: dict) -> None:
     memo = generate_investment_memo("FPT", data)
     check("Xuất bản ghi nhớ đầu tư (Investment Memo) đầy đủ nội dung", "BÁO CÁO PHÂN TÍCH ĐỊNH LƯỢNG" in memo and "FPT" in memo)
 
+    from Module5.risk_engine import RiskEngine
+    from Module4.technical_engine import TechnicalEngine
+    from ui.charts import monte_carlo_fan_chart, peer_benchmark_radar
+
+    mc = RiskEngine.monte_carlo_simulation(data.get("ohlc", []), days=60, num_simulations=500)
+    check("Mô phỏng Monte Carlo có 61 bước phân vị", len(mc.get("p50_path", [])) == 61)
+    check("Monte Carlo tính được Xác suất sinh lời (PoP)", 0 <= mc.get("prob_of_profit_pct", -1) <= 100)
+    check("Monte Carlo tính được VaR 95%", mc.get("var_95_vnd", -1) >= 0)
+
+    fig_mc = monte_carlo_fan_chart(mc, 100_000)
+    check("Vẽ biểu đồ Cánh quạt Monte Carlo thành công", fig_mc is not None)
+
+    te = TechnicalEngine().analyze(data.get("ohlc", []))
+    te_triggers = te.get("triggers", {})
+    check("Quét ma trận tín hiệu kỹ thuật (Trigger Radar)", "overall_action" in te_triggers and "triggers_list" in te_triggers)
+
+    from Module2.fundamental_engine import FundamentalEngine
+    fund = FundamentalEngine().analyze(data.get("financials", {}))
+    fig_peer = peer_benchmark_radar(fund, "FPT")
+    check("Vẽ biểu đồ Radar So chuẩn ngành thành công", fig_peer is not None)
+
 
 def main() -> int:
     print("=" * 60)

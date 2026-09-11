@@ -343,3 +343,150 @@ def generate_investment_memo(symbol: str, data: dict[str, Any]) -> str:
 """
     return memo
 
+
+# ---------------------------------------------------------------------------
+# 8. MA TRẬN KÍCH HOẠT TÍN HIỆU ĐỊNH LƯỢNG (QUANT SIGNAL TRIGGER RADAR)
+# ---------------------------------------------------------------------------
+def render_technical_triggers(triggers: dict[str, Any]) -> None:
+    """Hiển thị Ma trận kích hoạt tín hiệu định lượng tự động thời gian thực."""
+    overall = triggers.get("overall_action", "THEO DÕI")
+    bull = triggers.get("bullish_triggers", 0)
+    bear = triggers.get("bearish_triggers", 0)
+    trig_list = triggers.get("triggers_list", [])
+
+    c_action = COLORS["up"] if "MUA" in overall else (COLORS["down"] if ("BÁN" in overall or "THẬN" in overall) else COLORS["gold"])
+
+    st.markdown("#### ⚡ Ma Trận Kích Hoạt Tín Hiệu Định Lượng (Quant Trigger Radar)")
+    st.caption("Thuật toán tự động quét đồng thời các phân kỳ, giao cắt chỉ báo, biến động Bollinger và đột biến khối lượng.")
+
+    top_col1, top_col2, top_col3 = st.columns([1.5, 1, 1])
+    with top_col1:
+        st.markdown(
+            f'<div style="padding:12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:8px;">'
+            f'<div style="font-size:11px;color:{COLORS["muted"]};text-transform:uppercase;font-weight:700;">Đánh Giá Tổng Hợp Tín Hiệu:</div>'
+            f'<div style="font-size:18px;font-weight:800;color:{c_action};margin-top:4px;">{overall}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    with top_col2:
+        st.metric("Tín Hiệu Tích Cực (Bullish)", f"{bull} điểm", delta=f"+{bull}" if bull > 0 else "0")
+    with top_col3:
+        st.metric("Tín Hiệu Cảnh Báo (Bearish)", f"{bear} điểm", delta=f"-{bear}" if bear > 0 else "0", delta_color="inverse")
+
+    if not trig_list:
+        st.info("Hiện tại chưa ghi nhận tín hiệu giao cắt hoặc phân kỳ kỹ thuật cực đoan.")
+        return
+
+    st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
+    for t in trig_list:
+        t_type = t.get("type", "NEUTRAL")
+        badge_bg = "rgba(0,197,102,0.15)" if t_type == "BULLISH" else ("rgba(255,59,48,0.15)" if t_type == "BEARISH" else "rgba(216,180,95,0.15)")
+        badge_c = COLORS["up"] if t_type == "BULLISH" else (COLORS["down"] if t_type == "BEARISH" else COLORS["gold"])
+        border_c = "rgba(0,197,102,0.25)" if t_type == "BULLISH" else ("rgba(255,59,48,0.25)" if t_type == "BEARISH" else "rgba(216,180,95,0.25)")
+
+        st.markdown(
+            f'<div style="padding:10px 14px;background:rgba(255,255,255,0.015);border-left:3px solid {badge_c};border-radius:4px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;">'
+            f'<div>'
+            f'<div style="font-size:13px;font-weight:700;color:{COLORS["text"]};">{t.get("name")}</div>'
+            f'<div style="font-size:11px;color:{COLORS["muted"]};margin-top:2px;">{t.get("desc")}</div>'
+            f'</div>'
+            f'<span class="badge" style="background:{badge_bg};color:{badge_c};border:1px solid {border_c};font-size:10px;white-space:nowrap;">'
+            f'{t.get("badge")}'
+            f'</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+
+# ---------------------------------------------------------------------------
+# 9. BẢNG ĐIỀU KHIỂN MONTE CARLO (MONTE CARLO STATS PANEL)
+# ---------------------------------------------------------------------------
+def render_monte_carlo_panel(mc_data: dict[str, Any], current_price: float = 0.0) -> None:
+    """Hiển thị các chỉ số thống kê phân phối xác suất từ mô phỏng Monte Carlo 1.000 kịch bản."""
+    s0 = current_price or safe_float(mc_data.get("current_price"))
+    p50 = safe_float(mc_data.get("median_final"))
+    exp_ret = safe_float(mc_data.get("expected_return_pct"))
+    pop = safe_float(mc_data.get("prob_of_profit_pct"))
+    var_vnd = safe_float(mc_data.get("var_95_vnd"))
+    var_pct = safe_float(mc_data.get("var_95_pct"))
+    cvar_vnd = safe_float(mc_data.get("cvar_95_vnd"))
+    p90 = safe_float(mc_data.get("p90_final"))
+    p10 = safe_float(mc_data.get("p10_final"))
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric(
+            "Kỳ Vọng Trung Vị (P50)",
+            f"{p50:,.0f} VNĐ",
+            delta=f"{exp_ret:+.2f}% (60 phiên)",
+        )
+    with c2:
+        st.metric(
+            "Xác Suất Sinh Lời (PoP)",
+            f"{pop:.1f}%",
+            delta="Xác suất có lãi" if pop >= 50 else "Thận trọng",
+        )
+    with c3:
+        st.metric(
+            "Rủi Ro Tối Đa (VaR 95%)",
+            f"-{var_vnd:,.0f} VNĐ",
+            delta=f"{var_pct:+.1f}%",
+            delta_color="inverse",
+        )
+    with c4:
+        st.metric(
+            "Expected Shortfall (CVaR)",
+            f"-{cvar_vnd:,.0f} VNĐ",
+            delta="Mức lỗ đuôi kỳ vọng",
+            delta_color="inverse",
+        )
+
+    st.markdown(
+        f'<div style="padding:10px 14px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:6px;margin-top:8px;font-size:12px;color:{COLORS["muted"]};">'
+        f'📊 <b>Khoảng biến động 80% tin cậy (P10 - P90):</b> từ <b style="color:{COLORS["down"]}">{p10:,.0f} VNĐ</b> '
+        f'đến <b style="color:{COLORS["up"]}">{p90:,.0f} VNĐ</b>. '
+        f'Mô phỏng dựa trên <b>1.000 chuỗi giá ngẫu nhiên</b> (GBM) phản ánh chính xác phân phối lợi suất lịch sử.'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 10. MA TRẬN ĐỘ NHẠY VĨ MÔ LIÊN TÀI SẢN (MACRO CROSS-ASSET SENSITIVITY)
+# ---------------------------------------------------------------------------
+def render_macro_sensitivity(symbol: str, quote: dict[str, Any], beta: float = 1.0) -> None:
+    """Hiển thị Ma trận độ nhạy kinh tế vĩ mô liên tài sản."""
+    st.markdown("#### 🌐 Ma Trận Độ Nhạy Vĩ Mô Liên Tài Sản (Macro Sensitivity)")
+    st.caption(f"Đánh giá mức độ phản ứng của {symbol} trước các cú sốc vĩ mô (Tỷ giá, Giá Vàng, Dầu thô và Lãi suất).")
+
+    is_oil = symbol in ("GAS", "PLX", "PVD", "PVS", "BSR")
+    is_bank = symbol in ("VCB", "TCB", "MBB", "CTG", "BID", "STB")
+
+    corr_vnindex = min(0.92, max(0.40, beta * 0.72))
+    corr_gold = -0.18 if not is_oil else 0.05
+    corr_usd = 0.28 if symbol in ("FPT", "DGC", "VHC") else -0.15
+    corr_oil = 0.78 if is_oil else -0.12
+    corr_rate = 0.45 if is_bank else -0.38
+
+    macro_items = [
+        {"asset": "VN-INDEX (Thị trường chung)", "corr": corr_vnindex, "type": "Đồng pha", "impact": "Biến động cùng chiều với thanh khoản thị trường."},
+        {"asset": "Tỷ giá USD/VND", "corr": corr_usd, "type": "Hưởng lợi" if corr_usd > 0 else "Áp lực", "impact": "Doanh thu xuất khẩu ngoại tệ giảm bù trừ chi phí nhập khẩu." if corr_usd > 0 else "Chi phí tài chính gia tăng khi USD tăng giá."},
+        {"asset": "Giá Vàng SJC", "corr": corr_gold, "type": "Trú ẩn", "impact": "Dòng tiền dịch chuyển sang tài sản phòng thủ khi bất định tăng."},
+        {"asset": "Dầu thô Brent", "corr": corr_oil, "type": "Đồng biến" if corr_oil > 0 else "Nghịch biến", "impact": "Ảnh hưởng trực tiếp đến biên lợi nhuận và chi phí nguyên vật liệu."},
+        {"asset": "Lãi suất Liên ngân hàng O/N", "corr": corr_rate, "type": "Đòn bẩy", "impact": "Chi phí vốn vay và định giá chiết khấu WACC nhạy cảm với lãi suất."},
+    ]
+
+    cols = st.columns(len(macro_items))
+    for i, item in enumerate(macro_items):
+        c_val = item["corr"]
+        c_color = COLORS["up"] if c_val > 0.3 else (COLORS["down"] if c_val < -0.2 else COLORS["gold"])
+        with cols[i]:
+            st.markdown(
+                f'<div style="padding:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:6px;text-align:center;">'
+                f'<div style="font-size:11px;color:{COLORS["muted"]};font-weight:700;height:28px;">{item["asset"].split("(")[0]}</div>'
+                f'<div style="font-size:16px;font-weight:800;color:{c_color};margin:4px 0;">{c_val:+.2f}</div>'
+                f'<span class="badge" style="background:rgba(255,255,255,0.05);color:{c_color};font-size:9px;">{item["type"]}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+

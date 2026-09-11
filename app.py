@@ -25,7 +25,9 @@ from ui.charts import (
     efficient_frontier_chart,
     financial_history_chart,
     momentum_chart,
+    monte_carlo_fan_chart,
     multi_ticker_radar_chart,
+    peer_benchmark_radar,
     scenario_chart,
     wacc_chart,
 )
@@ -35,8 +37,11 @@ from ui.institutional_tools import (
     render_ai_copilot_brief,
     render_dcf_sandbox,
     render_dupont_5_factor,
+    render_macro_sensitivity,
     render_market_ticker_tape,
+    render_monte_carlo_panel,
     render_quick_watchlist,
+    render_technical_triggers,
 )
 from ui.login import render_login_screen
 from ui.theme import (
@@ -615,6 +620,11 @@ elif selected_view == "🏢 Cơ bản & F-Score":
             target_col = col_ca if idx % 2 == 0 else col_cb
             target_col.markdown(f"{icon} <span style='color:{color_txt}'>{label}</span>", unsafe_allow_html=True)
 
+    st.markdown("---")
+    st.markdown("### 🕸️ So Chuẩn Sức Khỏe Tài Chính Với Bình Quân VN30")
+    st.caption("Khảo sát vị thế cạnh tranh của doanh nghiệp trên 6 trụ cột cơ bản so với mặt bằng chung các cổ phiếu đầu ngành.")
+    st.plotly_chart(peer_benchmark_radar(f, symbol), use_container_width=True)
+
 # ============================ 4. ĐỊNH GIÁ DCF ============================
 elif selected_view == "💎 Định giá DCF":
     v = valuation
@@ -662,6 +672,11 @@ elif selected_view == "💎 Định giá DCF":
 # ============================ 5. KỸ THUẬT & RSI ==========================
 elif selected_view == "📈 Kỹ thuật & RSI":
     t = technical
+    triggers = t.get("triggers", {})
+    if triggers:
+        render_technical_triggers(triggers)
+        st.markdown("---")
+
     summary = t.get("summary", {})
     t1, t2, t3, t4 = st.columns(4)
     t1.metric("Xu hướng chính", str(summary.get("trend", "")))
@@ -734,6 +749,9 @@ elif selected_view == "🛡️ Rủi ro & Altman Z":
             ])
             st.dataframe(df_b, use_container_width=True, hide_index=True)
 
+    st.markdown("---")
+    render_macro_sensitivity(symbol, quote, safe_float(risk.get("market", {}).get("beta"), 1.0))
+
 # ============================ 7. KỊCH BẢN GIÁ ML ==========================
 elif selected_view == "🤖 Kịch bản Giá ML":
     st.markdown("### 🤖 Dự Báo 3 Kịch Bản Giá Bằng Machine Learning")
@@ -761,6 +779,14 @@ elif selected_view == "🤖 Kịch bản Giá ML":
         f"Mẫu huấn luyện: {meta.get('train_samples', 0)} phiên · "
         f"Hệ số R²: {meta.get('r2_in_sample', 'n/a')}"
     )
+
+    st.markdown("---")
+    st.markdown("### 🎲 Mô Phỏng Monte Carlo 1.000 Kịch Bản Giá Tương Lai")
+    st.caption("Ứng dụng mô hình Chuyển động Brown hình học (Geometric Brownian Motion - GBM) 60 phiên tiếp theo.")
+    mc_data = risk.get("monte_carlo", {})
+    if mc_data:
+        render_monte_carlo_panel(mc_data, safe_float(quote.get("price")))
+        st.plotly_chart(monte_carlo_fan_chart(mc_data, safe_float(quote.get("price"))), use_container_width=True)
 
 # ============================ 8. LUẬN ĐIỂM ĐẦU TƯ =========================
 elif selected_view == "📝 Luận điểm Đầu tư":

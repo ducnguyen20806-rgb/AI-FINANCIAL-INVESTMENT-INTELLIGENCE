@@ -310,12 +310,133 @@ class RiskEngine:
         }
 
     # ------------------------------------------------------------------
+    @staticmethod
+    def monte_carlo_simulation(
+        ohlc: list[dict[str, Any]],
+        days: int = 60,
+        num_simulations: int = 1000,
+        seed: int = 42,
+    ) -> dict[str, Any]:
+        """
+        Mô phỏng Monte Carlo 1.000 kịch bản giá tương lai (Geometric Brownian Motion - GBM):
+        - Dự báo đường giá 60 phiên tiếp theo
+        - Tính toán dải phân vị P10, P25, P50 (median), P75, P90
+        - Xác suất sinh lời (Probability of Profit - PoP)
+        - Value at Risk (VaR 95%) & Expected Shortfall (CVaR 95%)
+        """
+        if not ohlc or len(ohlc) < 10:
+            return {
+                "days": days,
+                "num_simulations": num_simulations,
+                "current_price": 0.0,
+                "median_final": 0.0,
+                "expected_return_pct": 0.0,
+                "prob_of_profit_pct": 50.0,
+                "var_95_vnd": 0.0,
+                "var_95_pct": 0.0,
+                "cvar_95_vnd": 0.0,
+                "p10_final": 0.0,
+                "p25_final": 0.0,
+                "p75_final": 0.0,
+                "p90_final": 0.0,
+                "days_axis": list(range(days + 1)),
+                "p10_path": [0.0] * (days + 1),
+                "p25_path": [0.0] * (days + 1),
+                "p50_path": [0.0] * (days + 1),
+                "p75_path": [0.0] * (days + 1),
+                "p90_path": [0.0] * (days + 1),
+                "sample_paths": [],
+            }
+
+        close_arr = np.array([safe_float(r.get("close")) for r in ohlc if safe_float(r.get("close")) > 0], dtype=float)
+        if close_arr.size < 10:
+            s0 = float(close_arr[-1]) if close_arr.size else 0.0
+            return {
+                "days": days, "num_simulations": num_simulations, "current_price": s0,
+                "median_final": s0, "expected_return_pct": 0.0, "prob_of_profit_pct": 50.0,
+                "var_95_vnd": 0.0, "var_95_pct": 0.0, "cvar_95_vnd": 0.0,
+                "p10_final": s0, "p25_final": s0, "p75_final": s0, "p90_final": s0,
+                "days_axis": list(range(days + 1)),
+                "p10_path": [s0] * (days + 1), "p25_path": [s0] * (days + 1),
+                "p50_path": [s0] * (days + 1), "p75_path": [s0] * (days + 1),
+                "p90_path": [s0] * (days + 1), "sample_paths": [],
+            }
+
+        s0 = float(close_arr[-1])
+        log_ret = np.diff(np.log(close_arr))
+        mu = float(np.mean(log_ret))
+        sigma = float(np.std(log_ret))
+        if sigma <= 0.0:
+            sigma = 0.015
+
+        drift = mu - 0.5 * (sigma ** 2)
+
+        rng = np.random.default_rng(seed)
+        shocks = rng.normal(loc=0.0, scale=1.0, size=(num_simulations, days))
+        daily_steps = np.exp(drift + sigma * shocks)
+
+        # Ma trận giá: (num_simulations, days + 1)
+        price_matrix = np.zeros((num_simulations, days + 1), dtype=float)
+        price_matrix[:, 0] = s0
+        for t in range(1, days + 1):
+            price_matrix[:, t] = price_matrix[:, t - 1] * daily_steps[:, t - 1]
+
+        final_prices = price_matrix[:, -1]
+        p10_path = np.percentile(price_matrix, 10, axis=0).tolist()
+        p25_path = np.percentile(price_matrix, 25, axis=0).tolist()
+        p50_path = np.percentile(price_matrix, 50, axis=0).tolist()
+        p75_path = np.percentile(price_matrix, 75, axis=0).tolist()
+        p90_path = np.percentile(price_matrix, 90, axis=0).tolist()
+
+        median_final = float(np.percentile(final_prices, 50))
+        p10_final = float(np.percentile(final_prices, 10))
+        p25_final = float(np.percentile(final_prices, 25))
+        p75_final = float(np.percentile(final_prices, 75))
+        p90_final = float(np.percentile(final_prices, 90))
+
+        p5_final = float(np.percentile(final_prices, 5))
+        var_95_vnd = max(0.0, s0 - p5_final)
+        var_95_pct = (p5_final - s0) / s0 * 100.0
+
+        worst_5_pct = final_prices[final_prices <= p5_final]
+        cvar_95_vnd = max(0.0, s0 - float(np.mean(worst_5_pct))) if worst_5_pct.size else var_95_vnd
+
+        pop = float(np.mean(final_prices > s0)) * 100.0
+        exp_return_pct = (median_final - s0) / s0 * 100.0
+
+        sample_paths = [price_matrix[i, :].tolist() for i in range(min(5, num_simulations))]
+
+        return {
+            "days": days,
+            "num_simulations": num_simulations,
+            "current_price": rnd(s0, 0),
+            "median_final": rnd(median_final, 0),
+            "expected_return_pct": rnd(exp_return_pct, 2),
+            "prob_of_profit_pct": rnd(pop, 1),
+            "var_95_vnd": rnd(var_95_vnd, 0),
+            "var_95_pct": rnd(var_95_pct, 2),
+            "cvar_95_vnd": rnd(cvar_95_vnd, 0),
+            "p10_final": rnd(p10_final, 0),
+            "p25_final": rnd(p25_final, 0),
+            "p75_final": rnd(p75_final, 0),
+            "p90_final": rnd(p90_final, 0),
+            "days_axis": list(range(days + 1)),
+            "p10_path": [rnd(x, 0) for x in p10_path],
+            "p25_path": [rnd(x, 0) for x in p25_path],
+            "p50_path": [rnd(x, 0) for x in p50_path],
+            "p75_path": [rnd(x, 0) for x in p75_path],
+            "p90_path": [rnd(x, 0) for x in p90_path],
+            "sample_paths": [[rnd(x, 0) for x in p] for p in sample_paths],
+        }
+
+    # ------------------------------------------------------------------
     def analyze(self, financials: dict[str, Any], ohlc: list[dict[str, Any]],
                 index_ohlc: list[dict[str, Any]] | None, market_cap: float,
                 fundamentals: dict[str, Any] | None = None) -> dict[str, Any]:
         z = self.altman_z_score(financials, market_cap)
         beneish = self.beneish_m_score(financials)
         market = self.market_risk(ohlc, index_ohlc)
+        monte_carlo = self.monte_carlo_simulation(ohlc)
 
         fundamentals = fundamentals or {}
         d_e = safe_float(fundamentals.get("debt_to_equity"))
@@ -339,6 +460,7 @@ class RiskEngine:
             "altman": z,
             "beneish": beneish,
             "market": market,
+            "monte_carlo": monte_carlo,
             "debt_to_equity": rnd(d_e, 4),
             "current_ratio": rnd(current_ratio, 4),
             "risk_flags": flags,

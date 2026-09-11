@@ -145,6 +145,7 @@ class TechnicalEngine:
             "volume_avg20": rnd(vol_avg20, 0),
             "volume_last": rnd(float(volume[-1]), 0),
             "volume_ratio": rnd(safe_div(float(volume[-1]), vol_avg20), 2),
+            "triggers": self.scan_triggers(close, ema20, ema50, rsi, macd_line, signal, volume),
             "series": {
                 "date": dates,
                 "close": [rnd(x, 0) for x in close.tolist()],
@@ -159,6 +160,208 @@ class TechnicalEngine:
                 "macd_signal": self._clean(signal),
                 "macd_hist": self._clean(hist),
             },
+        }
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def scan_triggers(close: np.ndarray, ema20: np.ndarray, ema50: np.ndarray,
+                      rsi: np.ndarray, macd_line: np.ndarray, signal_line: np.ndarray,
+                      volume: np.ndarray) -> dict[str, Any]:
+        """
+        Quét các điểm kích hoạt tín hiệu định lượng (Quant Algorithmic Triggers):
+        1. Golden Cross / Death Cross
+        2. RSI Divergence (Phân kỳ tăng / giảm)
+        3. Bollinger Band Squeeze & Breakout
+        4. Volume Spike (Đột biến khối lượng dòng tiền tổ chức)
+        5. MACD Momentum Crossover
+        """
+        n = close.size
+        if n < 20:
+            return {
+                "overall_action": "THEO DÕI",
+                "net_score": 0,
+                "bullish_triggers": 0,
+                "bearish_triggers": 0,
+                "triggers_list": [],
+            }
+
+        triggers: list[dict[str, Any]] = []
+        bull_count = 0
+        bear_count = 0
+
+        # 1. EMA Trend & Crossover
+        if not np.isnan(ema20[-1]) and not np.isnan(ema50[-1]):
+            e20_now, e50_now = ema20[-1], ema50[-1]
+            e20_prev = ema20[-5] if n >= 5 and not np.isnan(ema20[-5]) else e20_now
+            e50_prev = ema50[-5] if n >= 5 and not np.isnan(ema50[-5]) else e50_now
+
+            if e20_prev <= e50_prev and e20_now > e50_now:
+                triggers.append({
+                    "name": "Golden Cross (Giao cắt vàng)",
+                    "type": "BULLISH",
+                    "badge": "⚡ ĐỘT PHÁ",
+                    "desc": "EMA 20 vừa cắt lên trên EMA 50 — Tín hiệu xác lập sóng tăng trung hạn.",
+                    "priority": "HIGH",
+                })
+                bull_count += 2
+            elif e20_now > e50_now and close[-1] > e20_now:
+                triggers.append({
+                    "name": "EMA 20/50 Bullish Alignment",
+                    "type": "BULLISH",
+                    "badge": "🟢 TÍCH CỰC",
+                    "desc": "Thị giá nằm trên dải EMA 20 và EMA 50 hướng lên vững chắc.",
+                    "priority": "MEDIUM",
+                })
+                bull_count += 1
+            elif e20_now < e50_now and close[-1] < e20_now:
+                triggers.append({
+                    "name": "EMA 20/50 Bearish Alignment",
+                    "type": "BEARISH",
+                    "badge": "🔴 TIÊU CỰC",
+                    "desc": "Thị giá nằm dưới EMA 20 và EMA 50 hướng xuống — Xu hướng giảm chi phối.",
+                    "priority": "MEDIUM",
+                })
+                bear_count += 1
+
+        # 2. RSI Divergence / Overbought / Oversold
+        valid_rsi = rsi[~np.isnan(rsi)]
+        if valid_rsi.size >= 10:
+            rsi_now = float(valid_rsi[-1])
+            if rsi_now <= 30:
+                triggers.append({
+                    "name": "RSI Oversold (Quá bán sâu)",
+                    "type": "BULLISH",
+                    "badge": "💎 VÙNG MUA",
+                    "desc": f"RSI({rsi_now:.1f}) chạm vùng quá bán — Kỳ vọng nhịp phục hồi kỹ thuật ngắn hạn.",
+                    "priority": "HIGH",
+                })
+                bull_count += 1
+            elif rsi_now >= 70:
+                triggers.append({
+                    "name": "RSI Overbought (Quá mua cao)",
+                    "type": "BEARISH",
+                    "badge": "⚠️ CẢNH BÁO",
+                    "desc": f"RSI({rsi_now:.1f}) đi vào vùng quá mua — Áp lực chốt lời ngắn hạn gia tăng.",
+                    "priority": "HIGH",
+                })
+                bear_count += 1
+
+            # Phân kỳ RSI đơn giản 20 phiên
+            if n >= 20 and valid_rsi.size >= 15:
+                if close[-1] < close[-15] and valid_rsi[-1] > valid_rsi[-15] and valid_rsi[-1] < 45:
+                    triggers.append({
+                        "name": "Phân kỳ Dương RSI (Bullish Divergence)",
+                        "type": "BULLISH",
+                        "badge": "🚀 TÍN HIỆU ĐẢO CHIỀU",
+                        "desc": "Giá tạo đáy thấp hơn nhưng RSI tạo đáy cao hơn — Dấu hiệu phân kỳ đảo chiều tăng.",
+                        "priority": "VERY_HIGH",
+                    })
+                    bull_count += 2
+
+        # 3. Bollinger Band Squeeze & Breakout
+        if n >= 20:
+            sma20 = float(np.mean(close[-20:]))
+            std20 = float(np.std(close[-20:]))
+            upper = sma20 + 2.0 * std20
+            lower = sma20 - 2.0 * std20
+            bw = (upper - lower) / sma20 if sma20 > 0 else 0.0
+
+            if close[-1] > upper:
+                triggers.append({
+                    "name": "Bollinger Upper Breakout",
+                    "type": "BULLISH",
+                    "badge": "⚡ BỨT PHÁ DẢI TRÊN",
+                    "desc": "Thị giá đóng cửa vượt ra ngoài dải Bollinger Band trên cùng động lượng mạnh.",
+                    "priority": "MEDIUM",
+                })
+                bull_count += 1
+            elif close[-1] < lower:
+                triggers.append({
+                    "name": "Bollinger Lower Penetration",
+                    "type": "BEARISH",
+                    "badge": "⚠️ THỦNG DẢI DƯỚI",
+                    "desc": "Thị giá rơi qua dải Bollinger dưới — Cần quản trị rủi ro mở rộng biên độ giảm.",
+                    "priority": "MEDIUM",
+                })
+                bear_count += 1
+            elif bw < 0.05:
+                triggers.append({
+                    "name": "Bollinger Band Squeeze (Nén biến động)",
+                    "type": "NEUTRAL",
+                    "badge": "⏳ NÉN BIẾN ĐỘNG",
+                    "desc": f"Độ mở dải Bollinger co hẹp ({bw*100:.1f}%) — Báo hiệu sắp có pha bứt phá mạnh.",
+                    "priority": "MEDIUM",
+                })
+
+        # 4. Volume Spike
+        if n >= 20 and volume.size >= 20:
+            v_avg20 = float(np.mean(volume[-20:]))
+            v_now = float(volume[-1])
+            v_ratio = v_now / v_avg20 if v_avg20 > 0 else 1.0
+
+            if v_ratio >= 1.8 and close[-1] > close[-2]:
+                triggers.append({
+                    "name": "Institutional Volume Accumulation",
+                    "type": "BULLISH",
+                    "badge": "🔥 DÒNG TIỀN VÀO",
+                    "desc": f"Khối lượng khớp lệnh phiên đạt {v_ratio:.1f}x trung bình 20 phiên kèm giá tăng mạnh.",
+                    "priority": "HIGH",
+                })
+                bull_count += 2
+            elif v_ratio >= 1.8 and close[-1] < close[-2]:
+                triggers.append({
+                    "name": "Heavy Distribution Volume",
+                    "type": "BEARISH",
+                    "badge": "🩸 DÒNG TIỀN THOÁT",
+                    "desc": f"Khối lượng phiên bán tháo đạt {v_ratio:.1f}x trung bình 20 phiên.",
+                    "priority": "HIGH",
+                })
+                bear_count += 2
+
+        # 5. MACD Crossover
+        valid_macd = macd_line[~np.isnan(macd_line)]
+        valid_sig = signal_line[~np.isnan(signal_line)]
+        if valid_macd.size >= 2 and valid_sig.size >= 2:
+            m_now, s_now = valid_macd[-1], valid_sig[-1]
+            m_prev, s_prev = valid_macd[-2], valid_sig[-2]
+            if m_prev <= s_prev and m_now > s_now:
+                triggers.append({
+                    "name": "MACD Bullish Crossover",
+                    "type": "BULLISH",
+                    "badge": "📈 GIAO CẮT MUA",
+                    "desc": "Đường MACD vừa cắt lên trên đường Signal — Xác nhận xung lượng tăng giá mở rộng.",
+                    "priority": "HIGH",
+                })
+                bull_count += 2
+            elif m_prev >= s_prev and m_now < s_now:
+                triggers.append({
+                    "name": "MACD Bearish Crossover",
+                    "type": "BEARISH",
+                    "badge": "📉 GIAO CẮT BÁN",
+                    "desc": "Đường MACD vừa cắt xuống dưới đường Signal — Xung lượng giảm hình thành.",
+                    "priority": "HIGH",
+                })
+                bear_count += 2
+
+        # Đánh giá tổng hợp
+        net_score = bull_count - bear_count
+        if net_score >= 3:
+            overall = "MUA MẠNH (STRONG BUY)"
+        elif net_score >= 1:
+            overall = "MUA TÍCH LŨY (ACCUMULATE)"
+        elif net_score <= -3:
+            overall = "HẠ TỶ TRỌNG / BÁN (SELL)"
+        elif net_score <= -1:
+            overall = "THẬN TRỌNG (CAUTION)"
+        else:
+            overall = "THEO DÕI (NEUTRAL)"
+
+        return {
+            "overall_action": overall,
+            "net_score": net_score,
+            "bullish_triggers": bull_count,
+            "bearish_triggers": bear_count,
+            "triggers_list": triggers,
         }
 
     # ------------------------------------------------------------------
@@ -211,6 +414,14 @@ class TechnicalEngine:
             "support": 0.0, "resistance": 0.0, "distance_to_support": 0.0,
             "distance_to_resistance": 0.0, "trend": "KHÔNG XÁC ĐỊNH",
             "signal": "TRUNG LẬP", "volume_avg20": 0.0, "volume_last": 0.0,
-            "volume_ratio": 0.0, "series": {},
+            "volume_ratio": 0.0,
+            "triggers": {
+                "overall_action": "THEO DÕI",
+                "net_score": 0,
+                "bullish_triggers": 0,
+                "bearish_triggers": 0,
+                "triggers_list": [],
+            },
+            "series": {},
             "error": "Chuỗi nến quá ngắn để tính chỉ báo kỹ thuật.",
         }

@@ -497,3 +497,218 @@ def multi_ticker_radar_chart(comparison: dict[str, dict[str, float]]) -> go.Figu
         showlegend=True,
     )
     return fig
+
+
+def monte_carlo_fan_chart(mc_data: dict[str, Any], current_price: float = 0.0) -> go.Figure:
+    """
+    Biểu đồ Cánh quạt Monte Carlo 1.000 Kịch bản (Fan Chart):
+    - Dải P10 - P90 và P25 - P75 dạng bóng mờ đa tầng
+    - Đường trung vị P50 (Median path)
+    - 5 đường kịch bản mẫu minh họa
+    """
+    days_axis = mc_data.get("days_axis") or []
+    if not days_axis or len(days_axis) < 2:
+        return _empty_fig("Không có dữ liệu mô phỏng Monte Carlo.")
+
+    p10 = mc_data.get("p10_path", [])
+    p25 = mc_data.get("p25_path", [])
+    p50 = mc_data.get("p50_path", [])
+    p75 = mc_data.get("p75_path", [])
+    p90 = mc_data.get("p90_path", [])
+    sample_paths = mc_data.get("sample_paths", [])
+
+    fig = go.Figure()
+
+    # Dải P10 - P90 (Vùng biến động 80% tin cậy)
+    fig.add_trace(
+        go.Scatter(
+            x=days_axis,
+            y=p90,
+            mode="lines",
+            line=dict(color="rgba(56,189,248,0.15)", width=1),
+            name="Phân vị P90 (Lạc quan)",
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=days_axis,
+            y=p10,
+            mode="lines",
+            line=dict(color="rgba(56,189,248,0.15)", width=1),
+            fill="tonexty",
+            fillcolor="rgba(56,189,248,0.08)",
+            name="Vùng P10 - P90 (80% tin cậy)",
+            hovertemplate="Phiên T+%{x}<br>P10: %{y:,.0f} VNĐ<extra></extra>",
+        )
+    )
+
+    # Dải P25 - P75 (Vùng biến động 50% trung tâm)
+    fig.add_trace(
+        go.Scatter(
+            x=days_axis,
+            y=p75,
+            mode="lines",
+            line=dict(color="rgba(216,180,95,0.25)", width=1),
+            name="Phân vị P75",
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=days_axis,
+            y=p25,
+            mode="lines",
+            line=dict(color="rgba(216,180,95,0.25)", width=1),
+            fill="tonexty",
+            fillcolor="rgba(216,180,95,0.14)",
+            name="Vùng P25 - P75 (50% trung tâm)",
+            hovertemplate="Phiên T+%{x}<br>P25: %{y:,.0f} VNĐ<extra></extra>",
+        )
+    )
+
+    # Các kịch bản mẫu mờ
+    for i, path in enumerate(sample_paths[:4]):
+        fig.add_trace(
+            go.Scatter(
+                x=days_axis,
+                y=path,
+                mode="lines",
+                line=dict(color="rgba(255,255,255,0.15)", width=1, dash="dot"),
+                name=f"Kịch bản mẫu #{i+1}",
+                showlegend=(i == 0),
+                hoverinfo="skip",
+            )
+        )
+
+    # Đường trung vị P50 (Kịch bản kỳ vọng)
+    fig.add_trace(
+        go.Scatter(
+            x=days_axis,
+            y=p50,
+            mode="lines+markers",
+            line=dict(color=COLORS["gold"], width=2.5),
+            marker=dict(size=4, color=COLORS["gold"]),
+            name="Trung vị P50 (Kỳ vọng)",
+            hovertemplate="<b>Phiên T+%{x}</b><br>Kỳ vọng P50: %{y:,.0f} VNĐ<extra></extra>",
+        )
+    )
+
+    # Đường thị giá hiện tại S0
+    s0 = current_price or safe_float(mc_data.get("current_price", 0.0))
+    if s0 > 0:
+        fig.add_hline(
+            y=s0,
+            line_dash="dash",
+            line_color=COLORS["reference"],
+            annotation_text=f"Giá hiện tại: {s0:,.0f}",
+            annotation_position="bottom right",
+            annotation_font_color=COLORS["reference"],
+            annotation_font_size=11,
+        )
+
+    layout = plotly_layout(
+        height=450,
+        title="Dự Báo Phân Phối Giá Monte Carlo (1.000 Kịch Bản · GBM 60 Phiên)",
+    )
+    layout.pop("legend", None)
+    fig.update_layout(
+        **layout,
+        xaxis_title="Số phiên giao dịch tương lai (T+0 đến T+60)",
+        yaxis_title="Thị giá mô phỏng (VNĐ)",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(color=COLORS["text"], size=10),
+        ),
+    )
+    return fig
+
+
+def peer_benchmark_radar(fundamentals: dict[str, Any], symbol: str = "TICKER") -> go.Figure:
+    """
+    Biểu đồ Radar So Chuẩn Doanh Nghiệp Với Bình Quân VN30/Ngành:
+    So sánh 6 trụ cột cơ bản chuẩn hóa thang điểm 0 - 100.
+    """
+    categories = [
+        "Biên Lợi Nhuận (EBIT/Gross)",
+        "Sinh Lời Vốn (ROE)",
+        "Thanh Khoản (Current Ratio)",
+        "An Toàn Nợ (1 / D/E)",
+        "Chất Lượng Tiền (CFO / NI)",
+        "Hiệu Suất Tài Sản (ROIC)",
+    ]
+
+    # Tính điểm chuẩn hóa (0-100) cho doanh nghiệp đang chọn
+    ebit_m = safe_float(fundamentals.get("ebit_margin")) * 100
+    roe = safe_float(fundamentals.get("roe")) * 100
+    cr = safe_float(fundamentals.get("current_ratio"))
+    de = safe_float(fundamentals.get("debt_to_equity"))
+    cfo_ni = safe_float(fundamentals.get("cfo_to_net_income"))
+    roic = safe_float(fundamentals.get("roic")) * 100
+
+    score_ebit = min(100.0, max(10.0, ebit_m * 3.5))
+    score_roe = min(100.0, max(10.0, roe * 4.0))
+    score_cr = min(100.0, max(10.0, cr * 45.0))
+    score_de = min(100.0, max(10.0, (2.5 - min(2.5, de)) * 40.0))
+    score_cfo = min(100.0, max(10.0, cfo_ni * 70.0))
+    score_roic = min(100.0, max(10.0, roic * 4.5))
+
+    ticker_scores = [score_ebit, score_roe, score_cr, score_de, score_cfo, score_roic]
+    ticker_scores.append(ticker_scores[0])
+
+    # Điểm chuẩn bình quân rổ VN30
+    vn30_benchmark = [55.0, 52.0, 50.0, 58.0, 52.0, 50.0]
+    vn30_benchmark.append(vn30_benchmark[0])
+
+    theta_cats = categories + [categories[0]]
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatterpolar(
+            r=vn30_benchmark,
+            theta=theta_cats,
+            name="Bình quân rổ VN30",
+            line=dict(color="rgba(148, 163, 184, 0.7)", width=1.5, dash="dash"),
+            fill="toself",
+            fillcolor="rgba(148, 163, 184, 0.08)",
+        )
+    )
+    fig.add_trace(
+        go.Scatterpolar(
+            r=ticker_scores,
+            theta=theta_cats,
+            name=f"{symbol} (Doanh nghiệp)",
+            line=dict(color=COLORS["accent"], width=2.5),
+            fill="toself",
+            fillcolor="rgba(56, 189, 248, 0.2)",
+        )
+    )
+
+    layout = plotly_layout(
+        height=420,
+        title=f"So Chuẩn Sức Khỏe Tài Chính: {symbol} vs. Bình Quân VN30",
+    )
+    layout.pop("legend", None)
+    fig.update_layout(
+        **layout,
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 100], gridcolor=COLORS["line"], color=COLORS["muted"]),
+            angularaxis=dict(gridcolor=COLORS["line"], color=COLORS["text"]),
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5,
+            font=dict(color=COLORS["text"]),
+        ),
+    )
+    return fig
