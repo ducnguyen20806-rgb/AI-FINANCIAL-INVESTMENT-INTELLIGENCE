@@ -694,9 +694,12 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     }}, 100);
   }}
 
-  // Kéo thả chuột và cảm ứng
+  // Kéo thả chuột và cảm ứng (hỗ trợ cả kéo thả và click trực tiếp không xung đột)
+  let hasMoved = false;
+
   function onPointerDown(e) {{
     isDragging = true;
+    hasMoved = false;
     startY = e.clientY;
     cordKnob.classList.add('grabbing');
     cordHitArea.classList.add('grabbing');
@@ -707,6 +710,9 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
   function onPointerMove(e) {{
     if (!isDragging) return;
     const dy = e.clientY - startY;
+    if (Math.abs(dy) > 3) {{
+      hasMoved = true;
+    }}
     updateCord(dy);
   }}
 
@@ -718,25 +724,23 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerUp);
 
-    const shouldToggle = currentPull >= PULL_THRESHOLD;
-    if (shouldToggle) {{
-      snapBack(() => {{
-        toggleLamp();
-      }});
+    if (hasMoved) {{
+      const shouldToggle = currentPull >= PULL_THRESHOLD;
+      if (shouldToggle) {{
+        snapBack(() => {{
+          toggleLamp();
+        }});
+      }} else {{
+        snapBack();
+      }}
     }} else {{
-      snapBack();
+      // Click trực tiếp vào núm giật -> Tự động kéo dãn và bật/tắt đèn
+      pullAndToggle();
     }}
   }}
 
   cordHitArea.addEventListener('pointerdown', onPointerDown);
   cordKnob.addEventListener('pointerdown', onPointerDown);
-
-  // Click vào dây/núm giật -> Kéo nhẹ và bật/tắt đèn
-  cordHitArea.addEventListener('click', (e) => {{
-    if (currentPull < 5) {{
-      pullAndToggle();
-    }}
-  }});
 
   // Bấm phím Cách (Spacebar) -> Kéo đèn bật/tắt (khi không trong ô input)
   window.addEventListener('keydown', (e) => {{
@@ -837,13 +841,6 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     redirectToDashboard('Guest_Trader', 'demo');
   }}
 
-  // Bấm Enter tại các ô nhập liệu -> Tự động đăng nhập
-  document.getElementById('login_user').addEventListener('keydown', (e) => {{
-    if (e.key === 'Enter') handleLogin();
-  }});
-  document.getElementById('login_pass').addEventListener('keydown', (e) => {{
-    if (e.key === 'Enter') handleLogin();
-  }});
 </script>
 <form id="auth_top_form" action="" method="GET" target="_top" style="display:none;">
   <input type="hidden" name="auth" value="true">
