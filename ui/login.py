@@ -186,28 +186,97 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     z-index: 10;
   }}
 
+  /* Khung hiển thị khi phòng tối (đèn tắt) - giống Tkinter _set_form_visible(False) */
+  .off-placeholder {{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 380px;
+    border: 1px dashed rgba(216, 180, 95, 0.25);
+    border-radius: 14px;
+    background: rgba(22, 25, 29, 0.45);
+    text-align: center;
+    padding: 30px 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }}
+  .off-placeholder:hover {{
+    border-color: rgba(216, 180, 95, 0.55);
+    background: rgba(22, 25, 29, 0.65);
+  }}
+  .off-icon {{
+    font-size: 38px;
+    margin-bottom: 12px;
+    opacity: 0.75;
+    animation: gentleBob 2.4s infinite ease-in-out;
+  }}
+  @keyframes gentleBob {{
+    0%, 100% {{ transform: translateY(0); }}
+    50% {{ transform: translateY(-4px); }}
+  }}
+  .off-title {{
+    font-size: 16px;
+    font-weight: 700;
+    color: #a4a7b0;
+    margin-bottom: 8px;
+  }}
+  .off-desc {{
+    font-size: 12px;
+    color: #636670;
+    line-height: 1.5;
+    max-width: 290px;
+    margin-bottom: 18px;
+  }}
+  .btn-quick-pull {{
+    background: rgba(216, 180, 95, 0.12);
+    border: 1px solid rgba(216, 180, 95, 0.4);
+    color: {GOLD};
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }}
+  .btn-quick-pull:hover {{
+    background: rgba(216, 180, 95, 0.25);
+    color: #f7e2a8;
+  }}
+
+  body.lamp-on .off-placeholder {{
+    display: none !important;
+  }}
+
+  /* Khung đăng nhập (chỉ hiển thị khi đèn BẬT SÁNG) */
   .login-card {{
-    background: rgba(22, 25, 29, 0.94);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    display: none;
+    background: {CARD_ON};
+    border: 1px solid rgba(216, 180, 95, 0.70);
     border-radius: 14px;
     padding: 24px 26px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-    opacity: 0.95;
-    transform: scale(0.99);
-    pointer-events: auto;
-    transition: background 0.6s cubic-bezier(0.25, 1, 0.5, 1),
-                border-color 0.6s cubic-bezier(0.25, 1, 0.5, 1),
-                opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1),
-                transform 0.6s cubic-bezier(0.25, 1, 0.5, 1),
-                box-shadow 0.6s ease;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(216, 180, 95, 0.35);
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+    transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1), transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
   }}
 
   body.lamp-on .login-card {{
-    background: {CARD_ON};
-    border-color: rgba(216, 180, 95, 0.70);
+    display: block;
     opacity: 1;
-    transform: scale(1);
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(216, 180, 95, 0.35);
+    transform: translateY(0) scale(1);
+    animation: cardAppear 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  }}
+
+  @keyframes cardAppear {{
+    from {{
+      opacity: 0;
+      transform: translateY(14px) scale(0.96);
+    }}
+    to {{
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }}
   }}
 
   .card-header-bar {{
@@ -424,16 +493,27 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     </svg>
 
     <div class="pull-tooltip" id="pullTooltip">
-      <span>💡</span> Kéo dây đèn (hoặc bấm phím Cách) để BẬT SÁNG & ĐĂNG NHẬP
+      <span>💡</span> Kéo dây đèn (hoặc phím Space) để BẬT ĐÈN
     </div>
   </div>
 
-  <!-- Thẻ Đăng Nhập & Đăng Ký -->
+  <!-- Khu Vực Thẻ Đăng Nhập & Đăng Ký -->
   <div class="card-area">
+    <!-- Khung hiển thị khi đèn tắt (giống Tkinter khi đèn tắt) -->
+    <div class="off-placeholder" id="offPlaceholder" onclick="pullAndToggle()">
+      <div class="off-icon">🛋️</div>
+      <div class="off-title">Phòng Đang Tắt Đèn</div>
+      <div class="off-desc">Kéo dây đèn bên trái (hoặc click núm dây / bấm phím Space) để <strong>bật sáng đèn</strong> và mở bảng đăng nhập.</div>
+      <button type="button" class="btn-quick-pull">
+        💡 Kéo Dây Bật Đèn Ngay
+      </button>
+    </div>
+
+    <!-- Khung đăng nhập (chỉ hiện khi đèn bật sáng) -->
     <div class="login-card" id="loginCard">
       <div class="card-header-bar">
         <div class="brand-badge">⚡ AI QUANT INTELLIGENCE</div>
-        <span style="font-size: 11px; color: {GOLD}; font-weight: 600;">Kéo đèn để mở khoá</span>
+        <span style="font-size: 11px; color: {GOLD}; font-weight: 600;">Đèn đang sáng</span>
       </div>
 
       <!-- Điều hướng tab Đăng nhập / Đăng ký -->
@@ -456,7 +536,7 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
           </div>
 
           <button type="submit" class="btn-submit">
-            <span>💡 Đăng nhập & Bật Đèn Vào Dashboard</span>
+            <span>Đăng nhập & Mở Dashboard</span>
             <span>→</span>
           </button>
         </form>
@@ -481,7 +561,7 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
           </div>
 
           <button type="submit" class="btn-submit">
-            <span>✨ Tạo tài khoản & Bật Đèn Vào Dashboard</span>
+            <span>✨ Tạo tài khoản & Mở Dashboard</span>
             <span>✨</span>
           </button>
         </form>
@@ -581,50 +661,37 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
     requestAnimationFrame(animate);
   }}
 
-  // --- UPGRADE: ĐĂNG NHẬP BẰNG KÉO ĐÈN BẬT SÁNG ---
-  function triggerLampLogin(customUser, customAction) {{
-    // Xác định thông tin tài khoản
-    let user = customUser;
-    let action = customAction || 'login';
+  // --- CHỨC NĂNG BẬT / TẮT ĐÈN (TOGGLE LAMP — GIỐNG LOGIN_LAMP.PY) ---
+  function toggleLamp() {{
+    isOn = !isOn;
+    playClickSound();
 
-    if (!user) {{
-      const isReg = document.getElementById('tabRegisterBtn').classList.contains('active');
-      if (isReg) {{
-        user = document.getElementById('reg_user').value.trim();
-        const p1 = document.getElementById('reg_pass').value;
-        const p2 = document.getElementById('reg_pass2').value;
-        if (!user) {{
-          statusMsg.innerText = '⚠️ Vui lòng nhập tên tài khoản đăng ký.';
-          return;
+    if (isOn) {{
+      document.body.classList.add('lamp-on');
+      pullTooltip.innerHTML = '<span>💡</span> Đèn đang sáng — Kéo dây để TẮT ĐÈN';
+      // Tự động focus vào ô Username để tiện gõ phím ngay
+      setTimeout(() => {{
+        const input = document.getElementById('login_user');
+        if (input) {{
+          input.focus();
+          input.select();
         }}
-        if (p1 && p2 && p1 !== p2) {{
-          statusMsg.innerText = '⚠️ Mật khẩu xác nhận không khớp!';
-          return;
-        }}
-        action = 'register';
-      }} else {{
-        user = document.getElementById('login_user').value.trim() || 'Admin';
-        action = 'login';
-      }}
-    }}
-
-    // Bật đèn sáng rực và phát âm thanh cơ học ngay lập tức
-    isOn = true;
-    try {{ playClickSound(); }} catch(e) {{}}
-    document.body.classList.add('lamp-on');
-    pullTooltip.innerHTML = '<span>⚡</span> Đang mở khóa Dashboard...';
-    statusMsg.innerHTML = '<span style="color:#d8b45f;font-weight:700;font-size:13px;">⚡ Đã xác thực! Đang chuyển thẳng vào Dashboard...</span>';
-
-    // Hiệu ứng co dãn dây chạy song song ngầm
-    if (currentPull > 0) {{
-      snapBack();
+      }}, 250);
     }} else {{
-      updateCord(32);
-      setTimeout(() => {{ snapBack(); }}, 30);
+      document.body.classList.remove('lamp-on');
+      pullTooltip.innerHTML = '<span>💡</span> Kéo dây đèn (hoặc phím Space) để BẬT ĐÈN';
     }}
+  }}
 
-    // Chuyển hướng ngay lập tức vào Dashboard chính (không chờ đợi)
-    redirectToDashboard(user, action);
+  // Kéo dây và bật/tắt (khi click nút hoặc phím tắt)
+  function pullAndToggle() {{
+    if (isDragging) return;
+    updateCord(45);
+    setTimeout(() => {{
+      snapBack(() => {{
+        toggleLamp();
+      }});
+    }}, 100);
   }}
 
   // Kéo thả chuột và cảm ứng
@@ -653,8 +720,9 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
 
     const shouldToggle = currentPull >= PULL_THRESHOLD;
     if (shouldToggle) {{
-      // Kéo dây đèn -> Bật sáng đèn và Đăng nhập vào Dashboard luôn!
-      triggerLampLogin();
+      snapBack(() => {{
+        toggleLamp();
+      }});
     }} else {{
       snapBack();
     }}
@@ -663,25 +731,25 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
   cordHitArea.addEventListener('pointerdown', onPointerDown);
   cordKnob.addEventListener('pointerdown', onPointerDown);
 
-  // Click vào dây/núm giật -> Tự động kéo đèn sáng và đăng nhập
+  // Click vào dây/núm giật -> Kéo nhẹ và bật/tắt đèn
   cordHitArea.addEventListener('click', (e) => {{
     if (currentPull < 5) {{
-      triggerLampLogin();
+      pullAndToggle();
     }}
   }});
 
-  // Bấm phím Cách (Spacebar) -> Kéo đèn sáng và đăng nhập
+  // Bấm phím Cách (Spacebar) -> Kéo đèn bật/tắt (khi không trong ô input)
   window.addEventListener('keydown', (e) => {{
     if (e.code === 'Space' && e.target.tagName !== 'INPUT') {{
       e.preventDefault();
-      triggerLampLogin();
+      pullAndToggle();
     }}
   }});
 
   // --- XỬ LÝ CHUYỂN HƯỚNG VÀO DASHBOARD CHÍNH ---
   function redirectToDashboard(user, action) {{
     const query = '?auth=true&user=' + encodeURIComponent(user) + '&action=' + encodeURIComponent(action);
-    statusMsg.innerHTML = '<div style="color:#d8b45f;font-weight:700;font-size:13px;">🎉 ' + (action === 'register' ? 'Đăng ký thành công' : 'Đăng nhập thành công') + '! Đang chuyển hướng...</div>' +
+    statusMsg.innerHTML = '<div style="color:#d8b45f;font-weight:700;font-size:13px;">🎉 Xin chào, ' + user + '! Đang mở Dashboard...</div>' +
       '<div style="margin-top:6px;font-size:11px;color:#8d9099;">Nếu hệ thống chưa tự mở, <a href="' + query + '" target="_top" style="color:#f3e6cd;text-decoration:underline;font-weight:700;">👉 Bấm vào đây để vào Dashboard</a></div>';
 
     // 1. Gọi trực tiếp hàm window.parent.__doLampLogin nếu cùng origin
@@ -746,7 +814,7 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
 
   function handleLogin() {{
     const user = document.getElementById('login_user').value.trim() || 'Admin';
-    triggerLampLogin(user, 'login');
+    redirectToDashboard(user, 'login');
   }}
 
   function handleRegister() {{
@@ -762,11 +830,11 @@ def build_lamp_html(initial_on: bool = True, default_user: str = "Admin") -> str
       statusMsg.innerText = '⚠️ Mật khẩu xác nhận không khớp!';
       return;
     }}
-    triggerLampLogin(user, 'register');
+    redirectToDashboard(user, 'register');
   }}
 
   function handleDemoLogin() {{
-    triggerLampLogin('Guest_Trader', 'demo');
+    redirectToDashboard('Guest_Trader', 'demo');
   }}
 
   // Bấm Enter tại các ô nhập liệu -> Tự động đăng nhập
