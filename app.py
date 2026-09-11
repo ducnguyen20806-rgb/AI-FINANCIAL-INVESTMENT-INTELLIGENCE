@@ -43,6 +43,7 @@ from ui.institutional_tools import (
     render_quick_watchlist,
     render_technical_triggers,
 )
+from ui.enterprise_dashboard import render_enterprise_dashboard
 from ui.login import render_login_screen
 from ui.theme import (
     ACTION_COLORS,
@@ -380,6 +381,7 @@ with st.sidebar:
     )
     nav_options = [
         "📊 Tổng quan",
+        "🏛️ Dashboard Doanh nghiệp",
         "📑 12 Chỉ số Vàng",
         "🏢 Cơ bản & F-Score",
         "💎 Định giá DCF",
@@ -541,7 +543,11 @@ if selected_view == "📊 Tổng quan":
         use_container_width=True,
     )
 
-# ============================ 2. 12 CHỈ SỐ VÀNG ==========================
+# ============================ 2. DASHBOARD DOANH NGHIỆP ==================
+elif selected_view == "🏛️ Dashboard Doanh nghiệp":
+    render_enterprise_dashboard(symbol, data)
+
+# ============================ 3. 12 CHỈ SỐ VÀNG ==========================
 elif selected_view == "📑 12 Chỉ số Vàng":
     st.markdown("### 📑 12 Chỉ Số Phân Tích Tài Chính Cốt Lõi")
     st.caption("Tổng hợp tự động từ mô hình định lượng và dữ liệu BCTC chuẩn hóa.")

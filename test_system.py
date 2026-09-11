@@ -353,6 +353,24 @@ def test_cache_and_tools(data: dict) -> None:
     fig_peer = peer_benchmark_radar(fund, "FPT")
     check("Vẽ biểu đồ Radar So chuẩn ngành thành công", fig_peer is not None)
 
+    from ui.enterprise_dashboard import (
+        chart_health_gauge,
+        chart_performance_heatmap,
+        chart_revenue_trend,
+        chart_segment_donut,
+        get_company_segments,
+    )
+    segs = get_company_segments("FPT")
+    check("Trích xuất mảng kinh doanh doanh nghiệp thành công", len(segs) >= 3)
+    fig_rev = chart_revenue_trend(data.get("fundamentals", {}).get("history", []))
+    check("Vẽ biểu đồ xu hướng doanh thu BI thành công", fig_rev is not None)
+    fig_donut = chart_segment_donut("FPT", 50_000)
+    check("Vẽ biểu đồ phân rã mảng kinh doanh thành công", fig_donut is not None)
+    fig_hm = chart_performance_heatmap(data.get("fundamentals", {}).get("history", []))
+    check("Vẽ ma trận nhiệt hiệu suất BI thành công", fig_hm is not None)
+    fig_gauge = chart_health_gauge(88.0)
+    check("Vẽ thước đo sức khỏe vận hành thành công", fig_gauge is not None)
+
 
 def main() -> int:
     print("=" * 60)
